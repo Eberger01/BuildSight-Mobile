@@ -1,11 +1,96 @@
-import React from 'react';
-import { StyleSheet, View, Text, ScrollView, Pressable, Switch } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, Text, ScrollView, Pressable, Switch, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, borderRadius, fontSize, shadows, darkTheme } from '@/constants/theme';
 
+const SETTINGS_KEY = 'buildsight_settings';
+
+interface SettingsData {
+  aiEnabled: boolean;
+  notifications: boolean;
+  autoSave: boolean;
+  autoUpload: boolean;
+  photoQuality: 'high' | 'medium' | 'low';
+}
+
+const defaultSettings: SettingsData = {
+  aiEnabled: true,
+  notifications: true,
+  autoSave: true,
+  autoUpload: false,
+  photoQuality: 'high',
+};
+
 export default function SettingsScreen() {
-  const [aiEnabled, setAiEnabled] = React.useState(true);
-  const [notifications, setNotifications] = React.useState(true);
-  const [autoSave, setAutoSave] = React.useState(true);
+  const [settings, setSettings] = useState<SettingsData>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load settings on mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const saved = await AsyncStorage.getItem(SETTINGS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setSettings({ ...defaultSettings, ...parsed });
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveSetting = async <K extends keyof SettingsData>(key: K, value: SettingsData[K]) => {
+    try {
+      const newSettings = { ...settings, [key]: value };
+      setSettings(newSettings);
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+    } catch (error) {
+      console.error('Failed to save setting:', error);
+      Alert.alert('Error', 'Failed to save setting. Please try again.');
+    }
+  };
+
+  const handlePhotoQualityPress = () => {
+    const options: Array<{ label: string; value: 'high' | 'medium' | 'low' }> = [
+      { label: 'High (Original)', value: 'high' },
+      { label: 'Medium (Balanced)', value: 'medium' },
+      { label: 'Low (Compressed)', value: 'low' },
+    ];
+
+    Alert.alert(
+      'Photo Quality',
+      'Select the quality for captured photos',
+      [
+        ...options.map(option => ({
+          text: option.label,
+          onPress: () => saveSetting('photoQuality', option.value),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]
+    );
+  };
+
+  const getPhotoQualityLabel = () => {
+    switch (settings.photoQuality) {
+      case 'high': return 'High (Original)';
+      case 'medium': return 'Medium (Balanced)';
+      case 'low': return 'Low (Compressed)';
+      default: return 'High (Original)';
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <Text style={styles.loadingText}>Loading settings...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -16,11 +101,11 @@ export default function SettingsScreen() {
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>AI Estimation</Text>
-              <Text style={styles.settingDescription}>Enable Gemini 3 Pro for cost estimation</Text>
+              <Text style={styles.settingDescription}>Enable Gemini 2.0 Flash for cost estimation</Text>
             </View>
             <Switch
-              value={aiEnabled}
-              onValueChange={setAiEnabled}
+              value={settings.aiEnabled}
+              onValueChange={(value) => saveSetting('aiEnabled', value)}
               trackColor={{ false: darkTheme.colors.cardElevated, true: colors.primary[500] }}
               thumbColor={colors.white}
             />
@@ -29,7 +114,34 @@ export default function SettingsScreen() {
           <Pressable style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>AI Model</Text>
-              <Text style={styles.settingDescription}>Gemini 3 Pro</Text>
+              <Text style={styles.settingDescription}>Gemini 2.0 Flash</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Camera Settings Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Camera Settings</Text>
+        <View style={styles.settingsCard}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Auto-Upload Photos</Text>
+              <Text style={styles.settingDescription}>Upload photos to gallery automatically</Text>
+            </View>
+            <Switch
+              value={settings.autoUpload}
+              onValueChange={(value) => saveSetting('autoUpload', value)}
+              trackColor={{ false: darkTheme.colors.cardElevated, true: colors.primary[500] }}
+              thumbColor={colors.white}
+            />
+          </View>
+          <View style={styles.divider} />
+          <Pressable style={styles.settingRow} onPress={handlePhotoQualityPress}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Photo Quality</Text>
+              <Text style={styles.settingDescription}>{getPhotoQualityLabel()}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -46,8 +158,8 @@ export default function SettingsScreen() {
               <Text style={styles.settingDescription}>Get updates about your projects</Text>
             </View>
             <Switch
-              value={notifications}
-              onValueChange={setNotifications}
+              value={settings.notifications}
+              onValueChange={(value) => saveSetting('notifications', value)}
               trackColor={{ false: darkTheme.colors.cardElevated, true: colors.primary[500] }}
               thumbColor={colors.white}
             />
@@ -65,8 +177,8 @@ export default function SettingsScreen() {
               <Text style={styles.settingDescription}>Automatically save estimate drafts</Text>
             </View>
             <Switch
-              value={autoSave}
-              onValueChange={setAutoSave}
+              value={settings.autoSave}
+              onValueChange={(value) => saveSetting('autoSave', value)}
               trackColor={{ false: darkTheme.colors.cardElevated, true: colors.primary[500] }}
               thumbColor={colors.white}
             />
@@ -112,10 +224,33 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Data Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Data</Text>
+        <View style={styles.settingsCard}>
+          <Pressable style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Export Data</Text>
+              <Text style={styles.settingDescription}>Download your estimates and projects</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, styles.dangerText]}>Clear Cache</Text>
+              <Text style={styles.settingDescription}>Free up storage space</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        </View>
+      </View>
+
       {/* App Info */}
       <View style={styles.appInfo}>
         <Text style={styles.appVersion}>BuildSight v1.0.0</Text>
-        <Text style={styles.appPowered}>Powered by Gemini 3 Pro</Text>
+        <Text style={styles.appPowered}>Powered by Gemini 2.0 Flash</Text>
+        <Text style={styles.appCopyright}>© 2025 BuildSight. All rights reserved.</Text>
       </View>
     </ScrollView>
   );
@@ -125,6 +260,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: darkTheme.colors.background,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: fontSize.md,
+    color: darkTheme.colors.textMuted,
   },
   content: {
     padding: spacing.lg,
@@ -177,6 +320,9 @@ const styles = StyleSheet.create({
     color: darkTheme.colors.textMuted,
     fontWeight: '300',
   },
+  dangerText: {
+    color: colors.error[500],
+  },
   appInfo: {
     alignItems: 'center',
     paddingVertical: spacing.xl,
@@ -189,5 +335,11 @@ const styles = StyleSheet.create({
   appPowered: {
     fontSize: fontSize.xs,
     color: colors.primary[400],
+    marginBottom: spacing.xs,
+  },
+  appCopyright: {
+    fontSize: fontSize.xs,
+    color: darkTheme.colors.textMuted,
+    opacity: 0.7,
   },
 });
