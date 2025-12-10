@@ -56,7 +56,12 @@ export default function DashboardScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={true}
+      overScrollMode="always"
+    >
       {/* Header */}
       <View style={styles.header}>
         <View>

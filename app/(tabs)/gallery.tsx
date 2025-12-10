@@ -191,7 +191,7 @@ export default function GalleryScreen() {
         style={styles.galleryContainer}
         contentContainerStyle={styles.galleryContent}
         showsVerticalScrollIndicator={true}
-        nestedScrollEnabled={true}
+        overScrollMode="always"
       >
         <View style={styles.galleryGrid}>
           {filteredItems.map((item) => (

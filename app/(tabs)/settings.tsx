@@ -116,7 +116,12 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={true}
+      overScrollMode="always"
+    >
       {/* AI Settings Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>AI Settings</Text>

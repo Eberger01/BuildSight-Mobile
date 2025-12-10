@@ -232,7 +232,8 @@ export default function EstimateScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         bounces={true}
-        nestedScrollEnabled={true}
+        overScrollMode="always"
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View style={styles.header}>

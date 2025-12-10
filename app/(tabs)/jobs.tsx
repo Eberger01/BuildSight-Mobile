@@ -94,7 +94,7 @@ export default function JobsScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={true}
-        nestedScrollEnabled={true}
+        overScrollMode="always"
       >
         <View style={styles.header}>
           <View>
