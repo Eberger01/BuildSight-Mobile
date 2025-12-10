@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Pressable, Switch, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Pressable, Switch, Alert, Modal, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, borderRadius, fontSize, shadows, darkTheme } from '@/constants/theme';
 
@@ -23,9 +23,16 @@ const defaultSettings: SettingsData = {
   currency: 'USD',
 };
 
+const currencyOptions: Array<{ label: string; value: 'USD' | 'EUR' | 'BRL' }> = [
+  { label: 'USD ($)', value: 'USD' },
+  { label: 'EUR (€)', value: 'EUR' },
+  { label: 'BRL (R$)', value: 'BRL' },
+];
+
 export default function SettingsScreen() {
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
+  const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -86,24 +93,9 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleCurrencyPress = () => {
-    const options: Array<{ label: string; value: 'USD' | 'EUR' | 'BRL' }> = [
-      { label: 'USD ($)', value: 'USD' },
-      { label: 'EUR (€)', value: 'EUR' },
-      { label: 'BRL (R$)', value: 'BRL' },
-    ];
-
-    Alert.alert(
-      'Currency',
-      'Select your preferred currency',
-      [
-        ...options.map(option => ({
-          text: option.label,
-          onPress: () => saveSetting('currency', option.value),
-        })),
-        { text: 'Cancel', style: 'cancel' as const },
-      ]
-    );
+  const handleCurrencySelect = (value: 'USD' | 'EUR' | 'BRL') => {
+    saveSetting('currency', value);
+    setCurrencyModalVisible(false);
   };
 
   const getCurrencyLabel = () => {
@@ -215,7 +207,7 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={styles.divider} />
-          <Pressable style={styles.settingRow} onPress={handleCurrencyPress}>
+          <Pressable style={styles.settingRow} onPress={() => setCurrencyModalVisible(true)}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Currency</Text>
               <Text style={styles.settingDescription}>{getCurrencyLabel()}</Text>
@@ -283,6 +275,53 @@ export default function SettingsScreen() {
         <Text style={styles.appPowered}>Powered by Gemini 3 Pro</Text>
         <Text style={styles.appCopyright}>© 2025 BuildSight. All rights reserved.</Text>
       </View>
+
+      {/* Currency Selection Modal */}
+      <Modal
+        visible={currencyModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setCurrencyModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCurrencyModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Currency</Text>
+            {currencyOptions.map((option, index) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.modalOption,
+                  index < currencyOptions.length - 1 && styles.modalOptionBorder,
+                  settings.currency === option.value && styles.modalOptionSelected,
+                ]}
+                onPress={() => handleCurrencySelect(option.value)}
+              >
+                <Text
+                  style={[
+                    styles.modalOptionText,
+                    settings.currency === option.value && styles.modalOptionTextSelected,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+                {settings.currency === option.value && (
+                  <Text style={styles.checkmark}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.modalCancel}
+              onPress={() => setCurrencyModalVisible(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -372,5 +411,65 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: darkTheme.colors.textMuted,
     opacity: 0.7,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: darkTheme.colors.card,
+    borderRadius: borderRadius.lg,
+    width: '100%',
+    maxWidth: 340,
+    ...shadows.lg,
+  },
+  modalTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '600',
+    color: darkTheme.colors.text,
+    textAlign: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: darkTheme.colors.border,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+  },
+  modalOptionBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: darkTheme.colors.border,
+  },
+  modalOptionSelected: {
+    backgroundColor: colors.primary[500] + '20',
+  },
+  modalOptionText: {
+    fontSize: fontSize.md,
+    color: darkTheme.colors.text,
+  },
+  modalOptionTextSelected: {
+    color: colors.primary[400],
+    fontWeight: '600',
+  },
+  checkmark: {
+    fontSize: fontSize.lg,
+    color: colors.primary[400],
+    fontWeight: '600',
+  },
+  modalCancel: {
+    padding: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: darkTheme.colors.border,
+    marginTop: spacing.xs,
+  },
+  modalCancelText: {
+    fontSize: fontSize.md,
+    color: darkTheme.colors.textMuted,
+    textAlign: 'center',
   },
 });
