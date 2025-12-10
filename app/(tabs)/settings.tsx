@@ -11,6 +11,7 @@ interface SettingsData {
   autoSave: boolean;
   autoUpload: boolean;
   photoQuality: 'high' | 'medium' | 'low';
+  currency: 'USD' | 'EUR' | 'BRL';
 }
 
 const defaultSettings: SettingsData = {
@@ -19,6 +20,7 @@ const defaultSettings: SettingsData = {
   autoSave: true,
   autoUpload: false,
   photoQuality: 'high',
+  currency: 'USD',
 };
 
 export default function SettingsScreen() {
@@ -84,6 +86,35 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleCurrencyPress = () => {
+    const options: Array<{ label: string; value: 'USD' | 'EUR' | 'BRL' }> = [
+      { label: 'USD ($)', value: 'USD' },
+      { label: 'EUR (€)', value: 'EUR' },
+      { label: 'BRL (R$)', value: 'BRL' },
+    ];
+
+    Alert.alert(
+      'Currency',
+      'Select your preferred currency',
+      [
+        ...options.map(option => ({
+          text: option.label,
+          onPress: () => saveSetting('currency', option.value),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]
+    );
+  };
+
+  const getCurrencyLabel = () => {
+    switch (settings.currency) {
+      case 'USD': return 'USD ($)';
+      case 'EUR': return 'EUR (€)';
+      case 'BRL': return 'BRL (R$)';
+      default: return 'USD ($)';
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -101,7 +132,7 @@ export default function SettingsScreen() {
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>AI Estimation</Text>
-              <Text style={styles.settingDescription}>Enable Gemini 2.0 Flash for cost estimation</Text>
+              <Text style={styles.settingDescription}>Enable Gemini 3 Pro for cost estimation</Text>
             </View>
             <Switch
               value={settings.aiEnabled}
@@ -114,7 +145,7 @@ export default function SettingsScreen() {
           <Pressable style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>AI Model</Text>
-              <Text style={styles.settingDescription}>Gemini 2.0 Flash</Text>
+              <Text style={styles.settingDescription}>Gemini 3 Pro Preview</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -184,10 +215,10 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={styles.divider} />
-          <Pressable style={styles.settingRow}>
+          <Pressable style={styles.settingRow} onPress={handleCurrencyPress}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Currency</Text>
-              <Text style={styles.settingDescription}>EUR (€)</Text>
+              <Text style={styles.settingDescription}>{getCurrencyLabel()}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -249,7 +280,7 @@ export default function SettingsScreen() {
       {/* App Info */}
       <View style={styles.appInfo}>
         <Text style={styles.appVersion}>BuildSight v1.0.0</Text>
-        <Text style={styles.appPowered}>Powered by Gemini 2.0 Flash</Text>
+        <Text style={styles.appPowered}>Powered by Gemini 3 Pro</Text>
         <Text style={styles.appCopyright}>© 2025 BuildSight. All rights reserved.</Text>
       </View>
     </ScrollView>
@@ -321,7 +352,7 @@ const styles = StyleSheet.create({
     fontWeight: '300',
   },
   dangerText: {
-    color: colors.error[500],
+    color: colors.danger[500],
   },
   appInfo: {
     alignItems: 'center',
