@@ -20,7 +20,7 @@ const defaultSettings: SettingsData = {
   autoSave: true,
   autoUpload: false,
   photoQuality: 'high',
-  currency: 'USD',
+  currency: 'EUR',
 };
 
 const currencyOptions: Array<{ label: string; value: 'USD' | 'EUR' | 'BRL' }> = [
