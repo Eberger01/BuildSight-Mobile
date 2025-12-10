@@ -90,7 +90,12 @@ export default function JobsScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.headerTitle}>Active Jobs</Text>
@@ -240,6 +245,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: darkTheme.colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   content: {
     padding: spacing.lg,

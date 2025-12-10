@@ -187,7 +187,12 @@ export default function GalleryScreen() {
       </ScrollView>
 
       {/* Gallery Grid */}
-      <ScrollView style={styles.galleryContainer} contentContainerStyle={styles.galleryContent}>
+      <ScrollView
+        style={styles.galleryContainer}
+        contentContainerStyle={styles.galleryContent}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+      >
         <View style={styles.galleryGrid}>
           {filteredItems.map((item) => (
             <Pressable
