@@ -1,32 +1,21 @@
-import React from 'react';
-import { StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Alert, StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { colors, spacing, borderRadius, fontSize, shadows, darkTheme } from '@/constants/theme';
-
-// Sample data
-const stats = [
-  { label: 'Active Jobs', value: '12', icon: '🔨', trend: '+3', color: 'primary' },
-  { label: 'Pending Estimates', value: '8', icon: '📋', trend: '+2', color: 'accent' },
-  { label: 'Completed This Month', value: '24', icon: '✅', trend: '+12%', color: 'success' },
-  { label: 'Total Revenue', value: '€142K', icon: '💰', trend: '+18%', color: 'success' },
-];
-
-const recentJobs = [
-  { id: 1, client: 'John Smith', type: 'Kitchen Remodel', status: 'In Progress', progress: 65, date: '2025-12-01' },
-  { id: 2, client: 'Sarah Johnson', type: 'Bathroom Upgrade', status: 'Planning', progress: 25, date: '2025-12-03' },
-  { id: 3, client: 'Mike Davis', type: 'Fence Installation', status: 'In Progress', progress: 80, date: '2025-11-28' },
-  { id: 4, client: 'Emily Brown', type: 'Home Improvement', status: 'Review', progress: 95, date: '2025-11-25' },
-];
-
-const upcomingTasks = [
-  { task: 'Site inspection - Johnson residence', time: 'Today, 2:00 PM', priority: 'high' },
-  { task: 'Material delivery - Smith kitchen', time: 'Tomorrow, 10:00 AM', priority: 'medium' },
-  { task: 'Final walkthrough - Davis fence', time: 'Dec 10, 3:00 PM', priority: 'medium' },
-  { task: 'Estimate review - New client', time: 'Dec 12, 11:00 AM', priority: 'low' },
-];
+import { listJobsAsync, JobRow } from '@/data/repos/jobsRepo';
+import { listTasksAsync, TaskRow, toggleTaskCompletedAsync } from '@/data/repos/tasksRepo';
+import { countEstimatesAsync } from '@/data/repos/estimatesRepo';
+import { formatCurrency } from '@/utils/formatters';
+import { loadSettingsAsync } from '@/data/settings';
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [estimatesCount, setEstimatesCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currency, setCurrency] = useState('EUR');
 
   const getStatColor = (color: string) => {
     switch (color) {
@@ -53,6 +42,50 @@ export default function DashboardScreen() {
       case 'low': return colors.success[500];
       default: return colors.neutral[500];
     }
+  };
+
+  const refresh = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [j, t, eCount, s] = await Promise.all([listJobsAsync(), listTasksAsync(8), countEstimatesAsync(), loadSettingsAsync()]);
+      setJobs(j);
+      setTasks(t);
+      setEstimatesCount(eCount);
+      setCurrency(s.currency);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
+
+  const stats = useMemo(() => {
+    const activeJobs = jobs.filter((j) => j.status !== 'Completed').length;
+    const completedThisMonth = jobs.filter((j) => {
+      if (j.status !== 'Completed') return false;
+      const d = new Date(j.updatedAt);
+      const now = new Date();
+      return d.getUTCFullYear() === now.getUTCFullYear() && d.getUTCMonth() === now.getUTCMonth();
+    }).length;
+    const totalRevenueCents = jobs.filter((j) => j.status === 'Completed').reduce((sum, j) => sum + (j.budgetCents || 0), 0);
+
+    return [
+      { label: 'Active Jobs', value: String(activeJobs), icon: '🔨', trend: '', color: 'primary' },
+      { label: 'Saved Estimates', value: String(estimatesCount), icon: '📋', trend: '', color: 'accent' },
+      { label: 'Completed This Month', value: String(completedThisMonth), icon: '✅', trend: '', color: 'success' },
+      { label: 'Total Revenue', value: formatCurrency(totalRevenueCents / 100, currency), icon: '💰', trend: '', color: 'success' },
+    ] as const;
+  }, [jobs, estimatesCount, currency]);
+
+  const recentJobs = useMemo(() => jobs.slice(0, 4), [jobs]);
+
+  const toggleTask = async (taskId: number) => {
+    await toggleTaskCompletedAsync(taskId);
+    await refresh();
   };
 
   return (
@@ -85,7 +118,7 @@ export default function DashboardScreen() {
               <Text style={styles.statLabel}>{stat.label}</Text>
               <View style={styles.statValueRow}>
                 <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={[styles.statTrend, { color: colors.success[500] }]}>{stat.trend}</Text>
+                {stat.trend ? <Text style={[styles.statTrend, { color: colors.success[500] }]}>{stat.trend}</Text> : null}
               </View>
             </View>
           </View>
@@ -105,8 +138,8 @@ export default function DashboardScreen() {
             <View key={job.id} style={styles.jobCard}>
               <View style={styles.jobHeader}>
                 <View>
-                  <Text style={styles.jobClient}>{job.client}</Text>
-                  <Text style={styles.jobType}>{job.type}</Text>
+                  <Text style={styles.jobClient}>{job.clientName}</Text>
+                  <Text style={styles.jobType}>{job.projectType}</Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) + '20' }]}>
                   <Text style={[styles.statusText, { color: getStatusColor(job.status) }]}>{job.status}</Text>
@@ -118,9 +151,16 @@ export default function DashboardScreen() {
                 </View>
                 <Text style={styles.progressText}>{job.progress}%</Text>
               </View>
-              <Text style={styles.jobDate}>Started: {job.date}</Text>
+              <Text style={styles.jobDate}>Started: {job.startDate}</Text>
             </View>
           ))}
+
+          {recentJobs.length === 0 && (
+            <View style={styles.jobCard}>
+              <Text style={styles.jobClient}>{isLoading ? 'Loading…' : 'No jobs yet'}</Text>
+              <Text style={styles.jobType}>{isLoading ? 'Fetching local data' : 'Create your first job in the Jobs tab.'}</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -128,21 +168,36 @@ export default function DashboardScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
-          <Text style={styles.viewAllLink}>View Calendar →</Text>
+          <Pressable onPress={() => Alert.alert('Coming soon', 'Calendar view is not implemented yet.')}>
+            <Text style={styles.viewAllLink}>View Calendar →</Text>
+          </Pressable>
         </View>
         <View style={styles.tasksList}>
-          {upcomingTasks.map((item, index) => (
-            <View key={index} style={styles.taskItem}>
+          {tasks.map((item) => (
+            <View key={item.id} style={styles.taskItem}>
               <View style={[styles.taskPriority, { backgroundColor: getPriorityColor(item.priority) }]} />
               <View style={styles.taskContent}>
-                <Text style={styles.taskName}>{item.task}</Text>
-                <Text style={styles.taskTime}>{item.time}</Text>
+                <Text style={styles.taskName}>{item.title}</Text>
+                <Text style={styles.taskTime}>{item.dueAt ? item.dueAt.slice(0, 10) : ''}</Text>
               </View>
-              <Pressable style={styles.checkBtn}>
-                <Text style={styles.checkBtnText}>✓</Text>
+              <Pressable style={styles.checkBtn} onPress={() => toggleTask(item.id)}>
+                <Text style={styles.checkBtnText}>{item.completed ? '↺' : '✓'}</Text>
               </Pressable>
             </View>
           ))}
+
+          {tasks.length === 0 && (
+            <View style={styles.taskItem}>
+              <View style={[styles.taskPriority, { backgroundColor: colors.neutral[500] }]} />
+              <View style={styles.taskContent}>
+                <Text style={styles.taskName}>{isLoading ? 'Loading…' : 'No tasks'}</Text>
+                <Text style={styles.taskTime}>{isLoading ? 'Fetching local data' : 'Tasks can be added later.'}</Text>
+              </View>
+              <View style={styles.checkBtn}>
+                <Text style={styles.checkBtnText}>•</Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* AI Banner */}

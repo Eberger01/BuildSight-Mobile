@@ -1,114 +1,121 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Pressable, TouchableOpacity, Alert, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, spacing, borderRadius, fontSize, shadows, darkTheme } from '@/constants/theme';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const categories = ['All', 'Kitchen', 'Bathroom', 'Fence', 'Deck', 'Painting'];
+import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
+import { importPhotoToAppStorageAsync } from '@/data/files';
+import { GalleryProjectRow, listGalleryProjectsAsync } from '@/data/repos/galleryRepo';
+import { JobRow, listJobsAsync } from '@/data/repos/jobsRepo';
+import { createPhotoAsync } from '@/data/repos/photosRepo';
+import { loadSettingsAsync } from '@/data/settings';
+import { photoQualityToExpo } from '@/utils/photoQuality';
 
-interface GalleryItem {
-  id: number;
-  category: string;
-  title: string;
-  date: string;
-  photoCount: number;
-}
-
-const galleryItems: GalleryItem[] = [
-  { id: 1, category: 'Kitchen', title: 'Smith Kitchen Remodel', date: '2025-12-01', photoCount: 12 },
-  { id: 2, category: 'Bathroom', title: 'Johnson Bathroom', date: '2025-12-03', photoCount: 8 },
-  { id: 3, category: 'Fence', title: 'Davis Fence Project', date: '2025-11-28', photoCount: 15 },
-  { id: 4, category: 'Deck', title: 'Wilson Deck Build', date: '2025-12-05', photoCount: 22 },
-  { id: 5, category: 'Painting', title: 'Anderson Interior', date: '2025-12-08', photoCount: 6 },
-  { id: 6, category: 'Kitchen', title: 'Brown Kitchen Update', date: '2025-11-25', photoCount: 18 },
-];
+const categories = ['All', 'Kitchen', 'Bathroom', 'Fence', 'Deck', 'Painting', 'Other'] as const;
 
 export default function GalleryScreen() {
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [isUploading, setIsUploading] = useState(false);
+  const router = useRouter();
+  const [selectedCategory, setSelectedCategory] = useState<(typeof categories)[number]>('All');
+  const [projects, setProjects] = useState<GalleryProjectRow[]>([]);
+  const [jobs, setJobs] = useState<JobRow[]>([]);
+  const [isBusy, setIsBusy] = useState(false);
+  const [quality, setQuality] = useState(0.8);
+  const [attachModalVisible, setAttachModalVisible] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'library' | 'camera' | null>(null);
 
-  const filteredItems = selectedCategory === 'All'
-    ? galleryItems
-    : galleryItems.filter(item => item.category === selectedCategory);
+  const refresh = useCallback(async () => {
+    const [p, j] = await Promise.all([listGalleryProjectsAsync(), listJobsAsync()]);
+    setProjects(p);
+    setJobs(j);
+  }, []);
 
-  const totalPhotos = filteredItems.reduce((sum, item) => sum + item.photoCount, 0);
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
 
-  const handleUpload = async () => {
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const s = await loadSettingsAsync();
+        setQuality(photoQualityToExpo(s.photoQuality));
+      })();
+    }, [])
+  );
+
+  const filteredProjects = useMemo(() => {
+    if (selectedCategory === 'All') return projects;
+    return projects.filter((p) => p.category === selectedCategory);
+  }, [projects, selectedCategory]);
+
+  const totalPhotos = useMemo(
+    () => filteredProjects.reduce((sum, item) => sum + (item.photoCount || 0), 0),
+    [filteredProjects]
+  );
+
+  const beginAttach = (action: 'library' | 'camera') => {
+    setPendingAction(action);
+    setAttachModalVisible(true);
+  };
+
+  const runAttach = async (jobId: number | null) => {
+    const action = pendingAction;
+    if (!action) return;
+
+    setAttachModalVisible(false);
+    setPendingAction(null);
+
     try {
-      // Request permission
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      setIsBusy(true);
 
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please grant access to your photo library to upload images.',
-          [{ text: 'OK' }]
-        );
-        return;
+      if (action === 'library') {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Please grant access to your photo library to add images.');
+          return;
+        }
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsMultipleSelection: true,
+          quality,
+          selectionLimit: 12,
+        });
+        if (result.canceled) return;
+
+        for (const asset of result.assets) {
+          const localPath = await importPhotoToAppStorageAsync(asset.uri);
+          await createPhotoAsync({ jobId, localPath, originalUri: asset.uri });
+        }
+      } else {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Required', 'Please grant camera access to take photos.');
+          return;
+        }
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          quality,
+          allowsEditing: false,
+        });
+        if (result.canceled) return;
+
+        const asset = result.assets[0];
+        const localPath = await importPhotoToAppStorageAsync(asset.uri);
+        await createPhotoAsync({ jobId, localPath, originalUri: asset.uri });
       }
 
-      setIsUploading(true);
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsMultipleSelection: true,
-        quality: 0.8,
-        selectionLimit: 10,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        console.log('Selected photos:', result.assets.length);
-        Alert.alert(
-          'Photos Selected',
-          `${result.assets.length} photo${result.assets.length > 1 ? 's' : ''} ready to upload.`,
-          [{ text: 'OK' }]
-        );
-        // TODO: Upload photos to backend/storage
-      }
-    } catch (error) {
-      console.error('Error picking images:', error);
-      Alert.alert('Error', 'Failed to select photos. Please try again.');
+      await refresh();
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to add photos.');
     } finally {
-      setIsUploading(false);
+      setIsBusy(false);
     }
   };
 
-  const handleTakePhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Please grant camera access to take photos.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-        allowsEditing: false,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        console.log('Photo taken:', result.assets[0].uri);
-        Alert.alert(
-          'Photo Captured',
-          'Photo is ready to upload.',
-          [{ text: 'OK' }]
-        );
-        // TODO: Upload photo to backend/storage
-      }
-    } catch (error) {
-      console.error('Error taking photo:', error);
-      Alert.alert('Error', 'Failed to capture photo. Please try again.');
-    }
-  };
-
-  const handleProjectPress = (item: GalleryItem) => {
-    console.log('View project:', item.id);
-    // TODO: Navigate to project photo gallery
+  const handleProjectPress = (item: GalleryProjectRow) => {
+    router.push((`/gallery/${item.projectId}` as unknown) as any);
   };
 
   return (
@@ -118,26 +125,26 @@ export default function GalleryScreen() {
         <View style={styles.headerInfo}>
           <Text style={styles.headerTitle}>Project Gallery</Text>
           <Text style={styles.headerSubtitle}>
-            {filteredItems.length} projects • {totalPhotos} photos
+            {filteredProjects.length} projects • {totalPhotos} photos
           </Text>
         </View>
         <View style={styles.headerActions}>
           {Platform.OS !== 'web' && (
             <TouchableOpacity
               style={styles.cameraBtn}
-              onPress={handleTakePhoto}
+              onPress={() => beginAttach('camera')}
             >
               <Text style={styles.cameraBtnIcon}>📸</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
             style={styles.uploadBtn}
-            onPress={handleUpload}
-            disabled={isUploading}
+            onPress={() => beginAttach('library')}
+            disabled={isBusy}
           >
             <Text style={styles.uploadBtnIcon}>➕</Text>
             <Text style={styles.uploadBtnText}>
-              {isUploading ? 'Uploading...' : 'Upload'}
+              {isBusy ? 'Working…' : 'Add'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -152,8 +159,8 @@ export default function GalleryScreen() {
       >
         {categories.map((category) => {
           const count = category === 'All'
-            ? galleryItems.length
-            : galleryItems.filter(item => item.category === category).length;
+            ? projects.length
+            : projects.filter(item => item.category === category).length;
 
           return (
             <Pressable
@@ -194,14 +201,18 @@ export default function GalleryScreen() {
         overScrollMode="always"
       >
         <View style={styles.galleryGrid}>
-          {filteredItems.map((item) => (
+          {filteredProjects.map((item) => (
             <Pressable
-              key={item.id}
+              key={item.projectId}
               style={styles.galleryItem}
               onPress={() => handleProjectPress(item)}
             >
               <View style={styles.imagePlaceholder}>
-                <Text style={styles.placeholderIcon}>📷</Text>
+                {item.thumbnailPath ? (
+                  <Image source={{ uri: item.thumbnailPath }} style={styles.thumbnail} />
+                ) : (
+                  <Text style={styles.placeholderIcon}>📷</Text>
+                )}
                 {/* Photo Count Badge */}
                 <View style={styles.photoCountBadge}>
                   <Text style={styles.photoCountIcon}>🖼️</Text>
@@ -212,24 +223,70 @@ export default function GalleryScreen() {
                 <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
                 <View style={styles.itemMeta}>
                   <Text style={styles.itemCategory}>{item.category}</Text>
-                  <Text style={styles.itemDate}>{item.date}</Text>
+                  <Text style={styles.itemDate}>{item.date ? item.date.slice(0, 10) : ''}</Text>
                 </View>
               </View>
             </Pressable>
           ))}
         </View>
 
-        {filteredItems.length === 0 && (
+        {filteredProjects.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateIcon}>📷</Text>
             <Text style={styles.emptyStateText}>No projects found</Text>
-            <Text style={styles.emptyStateSubtext}>Try a different category or upload new photos</Text>
-            <TouchableOpacity style={styles.emptyStateBtn} onPress={handleUpload}>
-              <Text style={styles.emptyStateBtnText}>Upload Photos</Text>
+            <Text style={styles.emptyStateSubtext}>Try a different category or add new photos</Text>
+            <TouchableOpacity style={styles.emptyStateBtn} onPress={() => beginAttach('library')}>
+              <Text style={styles.emptyStateBtnText}>Add Photos</Text>
             </TouchableOpacity>
           </View>
         )}
       </ScrollView>
+
+      {/* Attach-to-Job modal */}
+      <Modal
+        visible={attachModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAttachModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setAttachModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Attach photos to…</Text>
+
+            <Pressable style={styles.modalOption} onPress={() => runAttach(null)}>
+              <Text style={styles.modalOptionText}>Unassigned</Text>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+
+            <View style={styles.modalDivider} />
+
+            <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent}>
+              {jobs.map((j) => (
+                <Pressable key={j.id} style={styles.modalOption} onPress={() => runAttach(j.id)}>
+                  <View style={styles.modalOptionInfo}>
+                    <Text style={styles.modalOptionText}>{j.clientName}</Text>
+                    <Text style={styles.modalOptionSub}>{j.projectType}</Text>
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </Pressable>
+              ))}
+              {jobs.length === 0 ? (
+                <View style={styles.modalEmpty}>
+                  <Text style={styles.modalEmptyText}>No jobs yet. Create one in Jobs → New.</Text>
+                </View>
+              ) : null}
+            </ScrollView>
+
+            <Pressable style={styles.modalCancel} onPress={() => setAttachModalVisible(false)}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -368,6 +425,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+  },
   placeholderIcon: {
     fontSize: 48,
     opacity: 0.5,
@@ -447,5 +508,85 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: '600',
     color: colors.white,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: darkTheme.colors.card,
+    borderRadius: borderRadius.lg,
+    width: '100%',
+    maxWidth: 380,
+    ...shadows.lg,
+    overflow: 'hidden',
+  },
+  modalTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: '700',
+    color: darkTheme.colors.text,
+    textAlign: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: darkTheme.colors.border,
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: darkTheme.colors.border,
+  },
+  modalList: {
+    maxHeight: 320,
+  },
+  modalListContent: {
+    paddingBottom: spacing.md,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: darkTheme.colors.border,
+  },
+  modalOptionInfo: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  modalOptionText: {
+    fontSize: fontSize.md,
+    fontWeight: '700',
+    color: darkTheme.colors.text,
+  },
+  modalOptionSub: {
+    marginTop: 2,
+    fontSize: fontSize.sm,
+    color: darkTheme.colors.textMuted,
+  },
+  chevron: {
+    fontSize: fontSize['2xl'],
+    color: darkTheme.colors.textMuted,
+    fontWeight: '300',
+  },
+  modalEmpty: {
+    padding: spacing.lg,
+  },
+  modalEmptyText: {
+    fontSize: fontSize.sm,
+    color: darkTheme.colors.textMuted,
+    textAlign: 'center',
+  },
+  modalCancel: {
+    padding: spacing.lg,
+    backgroundColor: darkTheme.colors.card,
+  },
+  modalCancelText: {
+    fontSize: fontSize.md,
+    color: darkTheme.colors.textMuted,
+    textAlign: 'center',
+    fontWeight: '700',
   },
 });

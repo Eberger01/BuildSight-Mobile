@@ -6,10 +6,10 @@
  * Format currency in EUR (German locale, no decimals)
  * Example: 45000 -> "45.000 €"
  */
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number, currency: string = 'EUR'): string {
   return new Intl.NumberFormat('de-DE', {
     style: 'currency',
-    currency: 'EUR',
+    currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);

@@ -40,3 +40,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+.vercel
+
+# MCP configuration (contains secrets)
+.mcp.json
+
+# Local editor/AI tooling
+.idea/
+.claude/

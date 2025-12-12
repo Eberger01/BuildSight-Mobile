@@ -48,7 +48,8 @@
           "photosPermission": "BuildSight needs access to your photos to upload project images.",
           "cameraPermission": "BuildSight needs access to your camera to take project photos."
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true

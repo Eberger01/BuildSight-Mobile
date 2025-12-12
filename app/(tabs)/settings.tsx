@@ -1,27 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Pressable, Switch, Alert, Modal, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, spacing, borderRadius, fontSize, shadows, darkTheme } from '@/constants/theme';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 
-const SETTINGS_KEY = 'buildsight_settings';
-
-interface SettingsData {
-  aiEnabled: boolean;
-  notifications: boolean;
-  autoSave: boolean;
-  autoUpload: boolean;
-  photoQuality: 'high' | 'medium' | 'low';
-  currency: 'USD' | 'EUR' | 'BRL';
-}
-
-const defaultSettings: SettingsData = {
-  aiEnabled: true,
-  notifications: true,
-  autoSave: true,
-  autoUpload: false,
-  photoQuality: 'high',
-  currency: 'EUR',
-};
+import { styles } from '@/app/(tabs)/settingsStyles';
+import { ProfileModal } from '@/components/settings/ProfileModal';
+import { colors, darkTheme } from '@/constants/theme';
+import { resetDbAsync } from '@/data/db';
+import { deleteAllAppFilesAsync } from '@/data/files';
+import { defaultProfile, loadProfileAsync, ProfileData, saveProfileAsync } from '@/data/profile';
+import { listAllEstimatesAsync } from '@/data/repos/estimatesRepo';
+import { listJobsAsync } from '@/data/repos/jobsRepo';
+import { listAllPhotosAsync } from '@/data/repos/photosRepo';
+import { listAllTasksAsync } from '@/data/repos/tasksRepo';
+import { defaultSettings, ESTIMATE_DRAFT_KEY, loadSettingsAsync, SETTINGS_KEY, SettingsData } from '@/data/settings';
+import { isApiKeyConfigured } from '@/services/geminiService';
+import { exportJsonAndShareAsync } from '@/utils/exportDownload';
 
 const currencyOptions: Array<{ label: string; value: 'USD' | 'EUR' | 'BRL' }> = [
   { label: 'USD ($)', value: 'USD' },
@@ -33,25 +26,19 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [profile, setProfile] = useState<ProfileData>(defaultProfile);
+  const [isBusy, setIsBusy] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const saved = await AsyncStorage.getItem(SETTINGS_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setSettings({ ...defaultSettings, ...parsed });
-      }
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-    } finally {
+    (async () => {
+      const [s, p] = await Promise.all([loadSettingsAsync(), loadProfileAsync()]);
+      setSettings(s);
+      setProfile(p);
       setIsLoading(false);
-    }
-  };
+    })();
+  }, []);
 
   const saveSetting = async <K extends keyof SettingsData>(key: K, value: SettingsData[K]) => {
     try {
@@ -107,6 +94,79 @@ export default function SettingsScreen() {
     }
   };
 
+  const profileSubtitle = useMemo(() => {
+    if (!profile.companyName && !profile.contactEmail && !profile.contactPhone) return 'Not set';
+    return profile.companyName || profile.contactEmail || profile.contactPhone;
+  }, [profile.companyName, profile.contactEmail, profile.contactPhone]);
+
+  const handleSaveProfile = async (p: ProfileData) => {
+    try {
+      await saveProfileAsync(p);
+      setProfile(p);
+      setProfileModalVisible(false);
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save profile.');
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setIsBusy(true);
+      const [jobs, estimates, photos, tasks] = await Promise.all([
+        listJobsAsync(),
+        listAllEstimatesAsync(),
+        listAllPhotosAsync(),
+        listAllTasksAsync(),
+      ]);
+
+      const exportJson = {
+        exportedAt: new Date().toISOString(),
+        settings,
+        profile,
+        jobs,
+        estimates,
+        photos,
+        tasks,
+      };
+      await exportJsonAndShareAsync({
+        baseName: 'buildsight_export',
+        json: exportJson,
+        dialogTitle: 'Export BuildSight Data',
+      });
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to export data.');
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleClearCache = async () => {
+    Alert.alert(
+      'Clear local data?',
+      'This deletes local photos/PDFs and resets the local database. Settings will be kept.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsBusy(true);
+              await deleteAllAppFilesAsync();
+              await resetDbAsync();
+              await AsyncStorage.removeItem(ESTIMATE_DRAFT_KEY);
+              Alert.alert('Done', 'Local cache cleared.');
+            } catch (e) {
+              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to clear cache.');
+            } finally {
+              setIsBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
@@ -139,7 +199,15 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={styles.divider} />
-          <Pressable style={styles.settingRow}>
+          <Pressable
+            style={styles.settingRow}
+            onPress={() =>
+              Alert.alert(
+                'AI Model',
+                `Model: gemini-3-pro-preview\nAPI key: ${isApiKeyConfigured() ? 'configured' : 'missing'}`
+              )
+            }
+          >
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>AI Model</Text>
               <Text style={styles.settingDescription}>Gemini 3 Pro Preview</Text>
@@ -220,7 +288,10 @@ export default function SettingsScreen() {
             <Text style={styles.chevron}>›</Text>
           </Pressable>
           <View style={styles.divider} />
-          <Pressable style={styles.settingRow}>
+          <Pressable
+            style={styles.settingRow}
+            onPress={() => Alert.alert('Coming soon', 'Language selection is not implemented yet.')}
+          >
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Language</Text>
               <Text style={styles.settingDescription}>English</Text>
@@ -234,15 +305,18 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.settingsCard}>
-          <Pressable style={styles.settingRow}>
+          <Pressable style={styles.settingRow} onPress={() => setProfileModalVisible(true)}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Profile</Text>
-              <Text style={styles.settingDescription}>Manage your account details</Text>
+              <Text style={styles.settingDescription}>{profileSubtitle}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
           <View style={styles.divider} />
-          <Pressable style={styles.settingRow}>
+          <Pressable
+            style={styles.settingRow}
+            onPress={() => Alert.alert('Subscription', 'Subscription management is not implemented yet.')}
+          >
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Subscription</Text>
               <Text style={styles.settingDescription}>Free Plan</Text>
@@ -256,7 +330,7 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Data</Text>
         <View style={styles.settingsCard}>
-          <Pressable style={styles.settingRow}>
+          <Pressable style={styles.settingRow} onPress={handleExport} disabled={isBusy}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Export Data</Text>
               <Text style={styles.settingDescription}>Download your estimates and projects</Text>
@@ -264,7 +338,7 @@ export default function SettingsScreen() {
             <Text style={styles.chevron}>›</Text>
           </Pressable>
           <View style={styles.divider} />
-          <Pressable style={styles.settingRow}>
+          <Pressable style={styles.settingRow} onPress={handleClearCache} disabled={isBusy}>
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, styles.dangerText]}>Clear Cache</Text>
               <Text style={styles.settingDescription}>Free up storage space</Text>
@@ -327,154 +401,13 @@ export default function SettingsScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <ProfileModal
+        visible={profileModalVisible}
+        profile={profile}
+        onClose={() => setProfileModalVisible(false)}
+        onSave={handleSaveProfile}
+      />
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: darkTheme.colors.background,
-  },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: fontSize.md,
-    color: darkTheme.colors.textMuted,
-  },
-  content: {
-    padding: spacing.lg,
-    paddingBottom: spacing['3xl'],
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    color: darkTheme.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: spacing.md,
-    marginLeft: spacing.xs,
-  },
-  settingsCard: {
-    backgroundColor: darkTheme.colors.card,
-    borderRadius: borderRadius.lg,
-    ...shadows.sm,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-  },
-  settingInfo: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  settingLabel: {
-    fontSize: fontSize.md,
-    fontWeight: '500',
-    color: darkTheme.colors.text,
-    marginBottom: spacing.xs,
-  },
-  settingDescription: {
-    fontSize: fontSize.sm,
-    color: darkTheme.colors.textMuted,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: darkTheme.colors.border,
-    marginHorizontal: spacing.lg,
-  },
-  chevron: {
-    fontSize: fontSize['2xl'],
-    color: darkTheme.colors.textMuted,
-    fontWeight: '300',
-  },
-  dangerText: {
-    color: colors.danger[500],
-  },
-  appInfo: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-  },
-  appVersion: {
-    fontSize: fontSize.sm,
-    color: darkTheme.colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  appPowered: {
-    fontSize: fontSize.xs,
-    color: colors.primary[400],
-    marginBottom: spacing.xs,
-  },
-  appCopyright: {
-    fontSize: fontSize.xs,
-    color: darkTheme.colors.textMuted,
-    opacity: 0.7,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-  },
-  modalContent: {
-    backgroundColor: darkTheme.colors.card,
-    borderRadius: borderRadius.lg,
-    width: '100%',
-    maxWidth: 340,
-    ...shadows.lg,
-  },
-  modalTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-    color: darkTheme.colors.text,
-    textAlign: 'center',
-    padding: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: darkTheme.colors.border,
-  },
-  modalOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-  },
-  modalOptionBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: darkTheme.colors.border,
-  },
-  modalOptionSelected: {
-    backgroundColor: colors.primary[500] + '20',
-  },
-  modalOptionText: {
-    fontSize: fontSize.md,
-    color: darkTheme.colors.text,
-  },
-  modalOptionTextSelected: {
-    color: colors.primary[400],
-    fontWeight: '600',
-  },
-  checkmark: {
-    fontSize: fontSize.lg,
-    color: colors.primary[400],
-    fontWeight: '600',
-  },
-  modalCancel: {
-    padding: spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: darkTheme.colors.border,
-    marginTop: spacing.xs,
-  },
-  modalCancelText: {
-    fontSize: fontSize.md,
-    color: darkTheme.colors.textMuted,
-    textAlign: 'center',
-  },
-});

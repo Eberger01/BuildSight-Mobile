@@ -11,8 +11,9 @@ import {
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Model configuration
-const MODEL_NAME = 'gemini-2.0-flash';
+// Model configuration - Gemini 3 Pro Preview
+// https://ai.google.dev/gemini-api/docs/gemini-3
+const MODEL_NAME = 'gemini-3-pro-preview';
 
 /**
  * Parse JSON from AI response (handles markdown code blocks)
