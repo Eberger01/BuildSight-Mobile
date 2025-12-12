@@ -78,6 +78,43 @@ export default function TabLayout() {
           headerTitle: 'Settings',
         }}
       />
+      {/* Hide nested routes and non-screen files from tab bar */}
+      <Tabs.Screen
+        name="jobs/new"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="settingsStyles"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="gallery/[projectId]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="jobs/[jobId]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="jobs/[jobId]/edit"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="jobs/[jobId]/photos"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
