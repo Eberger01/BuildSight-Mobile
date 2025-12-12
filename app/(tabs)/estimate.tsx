@@ -240,6 +240,35 @@ export default function EstimateScreen() {
     }
   };
 
+  const handleSaveDraft = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Save as draft estimate without AI generation
+      await createEstimateAsync({
+        jobId: null,
+        status: 'draft',
+        projectDataJson: JSON.stringify({ ...formData, photos }),
+        estimateJson: null,
+        currency,
+      });
+
+      // Clear the autosave draft since we've saved properly
+      await AsyncStorage.removeItem(ESTIMATE_DRAFT_KEY);
+
+      Alert.alert('Draft Saved', 'Your estimate draft has been saved. You can generate the AI estimate later.', [
+        { text: 'OK', onPress: () => resetForm() },
+        { text: 'Continue Editing', style: 'cancel' },
+      ]);
+    } catch (err) {
+      console.error('Error saving draft:', err);
+      setError(err instanceof Error ? err.message : 'Failed to save draft.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (estimate) {
     return (
       <>
@@ -275,6 +304,7 @@ export default function EstimateScreen() {
       onTakePhoto={takePhoto}
       onPickImages={pickImages}
       onSubmit={handleSubmit}
+      onSaveDraft={handleSaveDraft}
     />
   );
 }

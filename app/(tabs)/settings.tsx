@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 
-import { styles } from '@/app/(tabs)/settingsStyles';
+import { styles } from '@/styles/settingsStyles';
 import { ProfileModal } from '@/components/settings/ProfileModal';
 import { colors, darkTheme } from '@/constants/theme';
 import { resetDbAsync } from '@/data/db';

@@ -102,6 +102,8 @@ export async function initDbAsync(): Promise<SQLite.SQLiteDatabase> {
   if (!initPromise) {
     initPromise = (async () => {
       const db = await getDbAsync();
+      // Set WAL mode outside of any transaction
+      await db.execAsync('PRAGMA journal_mode = WAL;');
       await applyMigrations(db);
       await seedIfEmpty(db);
       return db;

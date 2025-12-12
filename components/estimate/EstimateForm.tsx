@@ -25,10 +25,11 @@ type Props = {
   onTakePhoto: () => void;
   onPickImages: () => void;
   onSubmit: () => void;
+  onSaveDraft?: () => void;
 };
 
 export function EstimateForm(props: Props) {
-  const { formData, photos, isLoading, error, onChange, onRemovePhoto, onTakePhoto, onPickImages, onSubmit } = props;
+  const { formData, photos, isLoading, error, onChange, onRemovePhoto, onTakePhoto, onPickImages, onSubmit, onSaveDraft } = props;
   const [showProjectTypes, setShowProjectTypes] = useState(false);
   const [showTimelines, setShowTimelines] = useState(false);
 
@@ -234,6 +235,15 @@ export function EstimateForm(props: Props) {
         )}
 
         <View style={styles.actions}>
+          {onSaveDraft && (
+            <TouchableOpacity
+              style={[styles.saveDraftButton, isLoading && styles.submitButtonDisabled]}
+              onPress={onSaveDraft}
+              disabled={isLoading}
+            >
+              <Text style={styles.saveDraftButtonText}>Save Draft</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
             onPress={onSubmit}
@@ -360,7 +370,18 @@ const styles = StyleSheet.create({
   },
   errorIcon: { fontSize: fontSize.lg, marginRight: spacing.sm },
   errorText: { flex: 1, color: colors.danger[400], fontSize: fontSize.sm },
-  actions: { marginBottom: spacing.xl },
+  actions: { marginBottom: spacing.xl, gap: spacing.md },
+  saveDraftButton: {
+    backgroundColor: darkTheme.colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: darkTheme.colors.border,
+  },
+  saveDraftButtonText: { color: darkTheme.colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.semibold },
   submitButton: {
     backgroundColor: colors.accent[500],
     borderRadius: borderRadius.lg,

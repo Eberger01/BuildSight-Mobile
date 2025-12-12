@@ -1,8 +1,6 @@
 export const MIGRATION_001_INITIAL = {
   version: 1,
   sql: `
-PRAGMA journal_mode = WAL;
-
 CREATE TABLE IF NOT EXISTS jobs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   clientName TEXT NOT NULL,

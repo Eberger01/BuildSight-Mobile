@@ -70,7 +70,7 @@ export default function JobsScreen() {
     }
 
     return result;
-  }, [statusFilter, sortBy]);
+  }, [jobs, statusFilter, sortBy]);
 
   const handlePhotos = (jobId: number) => {
     router.push(`/jobs/${jobId}/photos`);

@@ -59,7 +59,7 @@ export default function TabLayout() {
         options={{
           title: 'Jobs',
           tabBarIcon: ({ color }) => <TabBarIcon name="briefcase" color={color} />,
-          headerTitle: 'Active Jobs',
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -67,7 +67,7 @@ export default function TabLayout() {
         options={{
           title: 'Gallery',
           tabBarIcon: ({ color }) => <TabBarIcon name="image" color={color} />,
-          headerTitle: 'Project Gallery',
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -76,43 +76,6 @@ export default function TabLayout() {
           title: 'Settings',
           tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
           headerTitle: 'Settings',
-        }}
-      />
-      {/* Hide nested routes and non-screen files from tab bar */}
-      <Tabs.Screen
-        name="jobs/new"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="settingsStyles"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="gallery/[projectId]"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="jobs/[jobId]"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="jobs/[jobId]/edit"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="jobs/[jobId]/photos"
-        options={{
-          href: null,
         }}
       />
     </Tabs>
