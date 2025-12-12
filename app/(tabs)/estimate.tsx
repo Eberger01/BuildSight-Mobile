@@ -257,10 +257,20 @@ export default function EstimateScreen() {
       // Clear the autosave draft since we've saved properly
       await AsyncStorage.removeItem(ESTIMATE_DRAFT_KEY);
 
-      Alert.alert('Draft Saved', 'Your estimate draft has been saved. You can generate the AI estimate later.', [
-        { text: 'OK', onPress: () => resetForm() },
-        { text: 'Continue Editing', style: 'cancel' },
-      ]);
+      Alert.alert(
+        'Draft Saved',
+        'Your estimate draft has been saved. You can generate the AI estimate later.',
+        [
+          {
+            text: 'Start New Estimate',
+            onPress: () => resetForm(),
+          },
+          {
+            text: 'Continue Editing',
+            style: 'cancel',
+          },
+        ]
+      );
     } catch (err) {
       console.error('Error saving draft:', err);
       setError(err instanceof Error ? err.message : 'Failed to save draft.');

@@ -1,7 +1,18 @@
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+
+// Guard: this file should only be used on native platforms.
+// Web should use files.web.ts via Metro's platform-specific resolution.
+if (Platform.OS === 'web') {
+  console.warn('data/files.ts loaded on web - this should not happen. Check Metro config.');
+}
 
 function getDocumentDirectory(): string {
   if (!FileSystem.documentDirectory) {
+    // On web, documentDirectory is null - return a safe fallback
+    if (Platform.OS === 'web') {
+      return '';
+    }
     throw new Error('FileSystem.documentDirectory is not available on this platform');
   }
   return FileSystem.documentDirectory;
@@ -24,6 +35,9 @@ function nowStamp(): string {
 let dirsInitialized = false;
 
 async function ensureDirAsync(dir: string): Promise<void> {
+  // Skip on web - FileSystem APIs don't work there
+  if (Platform.OS === 'web') return;
+
   try {
     // Just try to create - it will succeed if doesn't exist, or throw EEXIST which we ignore
     await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
@@ -38,7 +52,7 @@ async function ensureDirAsync(dir: string): Promise<void> {
 }
 
 export async function ensureAppDirsAsync(): Promise<void> {
-  if (dirsInitialized) return;
+  if (Platform.OS === 'web' || dirsInitialized) return;
   await ensureDirAsync(ROOT_DIR());
   await ensureDirAsync(PHOTOS_DIR());
   await ensureDirAsync(PDFS_DIR());
@@ -47,6 +61,9 @@ export async function ensureAppDirsAsync(): Promise<void> {
 }
 
 export async function importPhotoToAppStorageAsync(inputUri: string): Promise<string> {
+  // On web, just return the URI as-is (blob/data URL)
+  if (Platform.OS === 'web') return inputUri;
+
   await ensureAppDirsAsync();
 
   const guessedExt =
@@ -63,6 +80,9 @@ export async function importPhotoToAppStorageAsync(inputUri: string): Promise<st
 }
 
 export async function savePdfToAppStorageAsync(tempPdfUri: string, baseName: string): Promise<string> {
+  // On web, just return the temp URI
+  if (Platform.OS === 'web') return tempPdfUri;
+
   await ensureAppDirsAsync();
 
   const name = safeFileName(baseName);
@@ -74,6 +94,20 @@ export async function savePdfToAppStorageAsync(tempPdfUri: string, baseName: str
 }
 
 export async function writeExportJsonAsync(baseName: string, json: unknown): Promise<string> {
+  // On web, trigger a download via blob
+  if (Platform.OS === 'web') {
+    const name = safeFileName(baseName);
+    const fileName = `${nowStamp()}_${name}.json`;
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return url;
+  }
+
   await ensureAppDirsAsync();
   const name = safeFileName(baseName);
   const dest = `${EXPORTS_DIR()}${nowStamp()}_${name}.json`;
@@ -84,6 +118,9 @@ export async function writeExportJsonAsync(baseName: string, json: unknown): Pro
 }
 
 export async function deleteAllAppFilesAsync(): Promise<void> {
+  // No-op on web
+  if (Platform.OS === 'web') return;
+
   const rootDir = ROOT_DIR();
   // idempotent: true means it won't throw if the directory doesn't exist
   await FileSystem.deleteAsync(rootDir, { idempotent: true });
