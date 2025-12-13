@@ -1,19 +1,14 @@
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 
-// Guard: this file should only be used on native platforms.
-// Web should use files.web.ts via Metro's platform-specific resolution.
-if (Platform.OS === 'web') {
-  console.warn('data/files.ts loaded on web - this should not happen. Check Metro config.');
+// Check if FileSystem is available (may be null in Expo Go or web)
+function isFileSystemAvailable(): boolean {
+  return !!FileSystem.documentDirectory;
 }
 
 function getDocumentDirectory(): string {
   if (!FileSystem.documentDirectory) {
-    // On web, documentDirectory is null - return a safe fallback
-    if (Platform.OS === 'web') {
-      return '';
-    }
-    throw new Error('FileSystem.documentDirectory is not available on this platform');
+    return '';
   }
   return FileSystem.documentDirectory;
 }
@@ -35,8 +30,8 @@ function nowStamp(): string {
 let dirsInitialized = false;
 
 async function ensureDirAsync(dir: string): Promise<void> {
-  // Skip on web - FileSystem APIs don't work there
-  if (Platform.OS === 'web') return;
+  // Skip if FileSystem not available
+  if (!isFileSystemAvailable()) return;
 
   try {
     // Just try to create - it will succeed if doesn't exist, or throw EEXIST which we ignore
@@ -52,7 +47,7 @@ async function ensureDirAsync(dir: string): Promise<void> {
 }
 
 export async function ensureAppDirsAsync(): Promise<void> {
-  if (Platform.OS === 'web' || dirsInitialized) return;
+  if (!isFileSystemAvailable() || dirsInitialized) return;
   await ensureDirAsync(ROOT_DIR());
   await ensureDirAsync(PHOTOS_DIR());
   await ensureDirAsync(PDFS_DIR());
@@ -61,8 +56,11 @@ export async function ensureAppDirsAsync(): Promise<void> {
 }
 
 export async function importPhotoToAppStorageAsync(inputUri: string): Promise<string> {
-  // On web, just return the URI as-is (blob/data URL)
-  if (Platform.OS === 'web') return inputUri;
+  // If FileSystem not available, just return the original URI
+  if (!isFileSystemAvailable()) {
+    console.warn('FileSystem not available, using original URI');
+    return inputUri;
+  }
 
   await ensureAppDirsAsync();
 
@@ -80,8 +78,8 @@ export async function importPhotoToAppStorageAsync(inputUri: string): Promise<st
 }
 
 export async function savePdfToAppStorageAsync(tempPdfUri: string, baseName: string): Promise<string> {
-  // On web, just return the temp URI
-  if (Platform.OS === 'web') return tempPdfUri;
+  // If FileSystem not available, just return the temp URI
+  if (!isFileSystemAvailable()) return tempPdfUri;
 
   await ensureAppDirsAsync();
 
@@ -108,6 +106,12 @@ export async function writeExportJsonAsync(baseName: string, json: unknown): Pro
     return url;
   }
 
+  // If FileSystem not available, return empty (can't export)
+  if (!isFileSystemAvailable()) {
+    console.warn('FileSystem not available, cannot export JSON');
+    return '';
+  }
+
   await ensureAppDirsAsync();
   const name = safeFileName(baseName);
   const dest = `${EXPORTS_DIR()}${nowStamp()}_${name}.json`;
@@ -118,8 +122,8 @@ export async function writeExportJsonAsync(baseName: string, json: unknown): Pro
 }
 
 export async function deleteAllAppFilesAsync(): Promise<void> {
-  // No-op on web
-  if (Platform.OS === 'web') return;
+  // No-op if FileSystem not available
+  if (!isFileSystemAvailable()) return;
 
   const rootDir = ROOT_DIR();
   // idempotent: true means it won't throw if the directory doesn't exist
