@@ -100,4 +100,12 @@ export async function updateJobAsync(
   );
 }
 
+export async function deleteJobAsync(jobId: number): Promise<void> {
+  const db = await initDbAsync();
+  // Delete related records first (photos, estimates), then the job
+  await db.runAsync(`DELETE FROM photos WHERE jobId = ?;`, [jobId]);
+  await db.runAsync(`DELETE FROM estimates WHERE jobId = ?;`, [jobId]);
+  await db.runAsync(`DELETE FROM jobs WHERE id = ?;`, [jobId]);
+}
+
 

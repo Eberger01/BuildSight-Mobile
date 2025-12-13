@@ -245,9 +245,20 @@ export default function EstimateScreen() {
       setIsLoading(true);
       setError(null);
 
-      // Save as draft estimate without AI generation
+      // Create a job in Planning status
+      const newJobId = await createJobAsync({
+        clientName: formData.clientName || 'Draft Client',
+        projectType: formData.projectType || 'Draft Project',
+        status: 'Planning',
+        progress: 0,
+        budgetCents: 0,
+        startDate: new Date().toISOString().slice(0, 10),
+        notes: 'Created from draft estimate',
+      });
+
+      // Save as draft estimate linked to the new job
       await createEstimateAsync({
-        jobId: null,
+        jobId: newJobId,
         status: 'draft',
         projectDataJson: JSON.stringify({ ...formData, photos }),
         estimateJson: null,
@@ -257,17 +268,23 @@ export default function EstimateScreen() {
       // Clear the autosave draft since we've saved properly
       await AsyncStorage.removeItem(ESTIMATE_DRAFT_KEY);
 
+      // Refresh jobs list
+      await refreshJobs();
+
       Alert.alert(
         'Draft Saved',
-        'Your estimate draft has been saved. You can generate the AI estimate later.',
+        'Your estimate draft has been saved as a new job in Planning status.',
         [
+          {
+            text: 'View Job',
+            onPress: () => {
+              resetForm();
+              router.push(`/jobs/${newJobId}` as any);
+            },
+          },
           {
             text: 'Start New Estimate',
             onPress: () => resetForm(),
-          },
-          {
-            text: 'Continue Editing',
-            style: 'cancel',
           },
         ]
       );

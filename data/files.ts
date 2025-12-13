@@ -3,14 +3,22 @@ import * as FileSystem from 'expo-file-system';
 
 // Check if FileSystem is available (may be null in Expo Go or web)
 function isFileSystemAvailable(): boolean {
-  return !!FileSystem.documentDirectory;
+  try {
+    return !!FileSystem.documentDirectory;
+  } catch {
+    return false;
+  }
 }
 
 function getDocumentDirectory(): string {
-  if (!FileSystem.documentDirectory) {
+  try {
+    if (!FileSystem.documentDirectory) {
+      return '';
+    }
+    return FileSystem.documentDirectory;
+  } catch {
     return '';
   }
-  return FileSystem.documentDirectory;
 }
 
 const ROOT_DIR = () => `${getDocumentDirectory()}buildsight/`;
@@ -30,19 +38,20 @@ function nowStamp(): string {
 let dirsInitialized = false;
 
 async function ensureDirAsync(dir: string): Promise<void> {
-  // Skip if FileSystem not available
-  if (!isFileSystemAvailable()) return;
+  // Skip if FileSystem not available or invalid directory path
+  if (!isFileSystemAvailable() || !dir || dir === 'buildsight/' || dir.startsWith('buildsight/')) return;
 
   try {
     // Just try to create - it will succeed if doesn't exist, or throw EEXIST which we ignore
     await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
   } catch (error: unknown) {
-    // Ignore "already exists" errors
+    // Ignore "already exists" errors and platform not available errors
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (!errorMessage.includes('already exists') && !errorMessage.includes('EEXIST')) {
-      console.error('ensureDirAsync failed for:', dir, error);
-      throw error;
+    if (errorMessage.includes('not available') || errorMessage.includes('already exists') || errorMessage.includes('EEXIST')) {
+      return;
     }
+    console.error('ensureDirAsync failed for:', dir, error);
+    throw error;
   }
 }
 

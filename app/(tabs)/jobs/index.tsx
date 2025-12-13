@@ -1,10 +1,11 @@
 import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
-import { JobRow, listJobsAsync } from '@/data/repos/jobsRepo';
+import { deleteJobAsync, JobRow, listJobsAsync } from '@/data/repos/jobsRepo';
 import { formatCurrency } from '@/utils/formatters';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 
 const STATUS_FILTERS = ['All', 'Planning', 'In Progress', 'Review', 'Completed'] as const;
 const SORT_OPTIONS = [
@@ -82,6 +83,49 @@ export default function JobsScreen() {
 
   const handleUpdate = (jobId: number) => {
     router.push(`/jobs/${jobId}/edit`);
+  };
+
+  const swipeableRefs = useRef<Map<number, Swipeable>>(new Map());
+
+  const handleDelete = (job: JobRow) => {
+    Alert.alert(
+      'Delete Job',
+      `Are you sure you want to delete "${job.clientName}"? This will also delete all associated photos and estimates.`,
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => swipeableRefs.current.get(job.id)?.close() },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteJobAsync(job.id);
+              await refreshJobs();
+            } catch (e) {
+              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete job.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderRightActions = (job: JobRow, progress: Animated.AnimatedInterpolation<number>) => {
+    const translateX = progress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [80, 0],
+    });
+
+    return (
+      <Animated.View style={[styles.deleteAction, { transform: [{ translateX }] }]}>
+        <TouchableOpacity
+          style={styles.deleteActionBtn}
+          onPress={() => handleDelete(job)}
+        >
+          <Text style={styles.deleteActionIcon}>🗑️</Text>
+          <Text style={styles.deleteActionText}>Delete</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    );
   };
 
   return (
@@ -168,63 +212,72 @@ export default function JobsScreen() {
         {/* Jobs Grid */}
         <View style={styles.jobsGrid}>
           {filteredJobs.map((job) => (
-            <View key={job.id} style={styles.jobCard}>
-              <View style={styles.jobHeader}>
-                <View style={styles.jobHeaderInfo}>
-                  <Text style={styles.jobClient}>{job.clientName}</Text>
-                  <Text style={styles.jobType}>{job.projectType}</Text>
+            <Swipeable
+              key={job.id}
+              ref={(ref: Swipeable | null) => {
+                if (ref) swipeableRefs.current.set(job.id, ref);
+              }}
+              renderRightActions={(progress: Animated.AnimatedInterpolation<number>) => renderRightActions(job, progress)}
+              overshootRight={false}
+            >
+              <View style={styles.jobCard}>
+                <View style={styles.jobHeader}>
+                  <View style={styles.jobHeaderInfo}>
+                    <Text style={styles.jobClient}>{job.clientName}</Text>
+                    <Text style={styles.jobType}>{job.projectType}</Text>
+                  </View>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) + '20' }]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(job.status) }]}>{job.status}</Text>
+                  </View>
                 </View>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(job.status) + '20' }]}>
-                  <Text style={[styles.statusText, { color: getStatusColor(job.status) }]}>{job.status}</Text>
-                </View>
-              </View>
 
-              <View style={styles.progressSection}>
-                <View style={styles.progressHeader}>
-                  <Text style={styles.progressLabel}>Progress</Text>
-                  <Text style={styles.progressValue}>{job.progress}%</Text>
+                <View style={styles.progressSection}>
+                  <View style={styles.progressHeader}>
+                    <Text style={styles.progressLabel}>Progress</Text>
+                    <Text style={styles.progressValue}>{job.progress}%</Text>
+                  </View>
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: `${job.progress}%` }]} />
+                  </View>
                 </View>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${job.progress}%` }]} />
-                </View>
-              </View>
 
-              <View style={styles.jobDetails}>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Budget</Text>
-                  <Text style={styles.detailValue}>{formatCurrency(job.budgetCents / 100)}</Text>
+                <View style={styles.jobDetails}>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Budget</Text>
+                    <Text style={styles.detailValue}>{formatCurrency(job.budgetCents / 100)}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
+                    <Text style={styles.detailLabel}>Started</Text>
+                    <Text style={styles.detailValue}>{job.startDate}</Text>
+                  </View>
                 </View>
-                <View style={styles.detailItem}>
-                  <Text style={styles.detailLabel}>Started</Text>
-                  <Text style={styles.detailValue}>{job.startDate}</Text>
-                </View>
-              </View>
 
-              {/* Action Buttons */}
-              <View style={styles.jobActions}>
-                <TouchableOpacity
-                  style={styles.actionBtn}
-                  onPress={() => handlePhotos(job.id)}
-                >
-                  <Text style={styles.actionBtnIcon}>📷</Text>
-                  <Text style={styles.actionBtnText}>Photos</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.actionBtn}
-                  onPress={() => handleDetails(job.id)}
-                >
-                  <Text style={styles.actionBtnIcon}>📋</Text>
-                  <Text style={styles.actionBtnText}>Details</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.primaryActionBtn]}
-                  onPress={() => handleUpdate(job.id)}
-                >
-                  <Text style={styles.actionBtnIcon}>✏️</Text>
-                  <Text style={[styles.actionBtnText, styles.primaryActionBtnText]}>Update</Text>
-                </TouchableOpacity>
+                {/* Action Buttons */}
+                <View style={styles.jobActions}>
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => handlePhotos(job.id)}
+                  >
+                    <Text style={styles.actionBtnIcon}>📷</Text>
+                    <Text style={styles.actionBtnText}>Photos</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => handleDetails(job.id)}
+                  >
+                    <Text style={styles.actionBtnIcon}>📋</Text>
+                    <Text style={styles.actionBtnText}>Details</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.primaryActionBtn]}
+                    onPress={() => handleUpdate(job.id)}
+                  >
+                    <Text style={styles.actionBtnIcon}>✏️</Text>
+                    <Text style={[styles.actionBtnText, styles.primaryActionBtnText]}>Update</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            </Swipeable>
           ))}
         </View>
 
@@ -487,5 +540,28 @@ const styles = StyleSheet.create({
   emptyStateSubtext: {
     fontSize: fontSize.sm,
     color: darkTheme.colors.textMuted,
+  },
+  deleteAction: {
+    width: 80,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  deleteActionBtn: {
+    flex: 1,
+    backgroundColor: colors.danger[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    borderRadius: borderRadius.lg,
+  },
+  deleteActionIcon: {
+    fontSize: fontSize.xl,
+    marginBottom: spacing.xs,
+  },
+  deleteActionText: {
+    color: colors.white,
+    fontSize: fontSize.xs,
+    fontWeight: '600',
   },
 });

@@ -1,11 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
 import { listEstimatesByJobIdAsync } from '@/data/repos/estimatesRepo';
-import { getJobByIdAsync, JobRow } from '@/data/repos/jobsRepo';
+import { deleteJobAsync, getJobByIdAsync, JobRow } from '@/data/repos/jobsRepo';
 import { listPhotosByJobIdAsync } from '@/data/repos/photosRepo';
 import { formatCurrency } from '@/utils/formatters';
 
@@ -17,6 +17,31 @@ export default function JobDetailsScreen() {
   const [job, setJob] = useState<JobRow | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
   const [estimateCount, setEstimateCount] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Job',
+      `Are you sure you want to delete "${job?.clientName || 'this job'}"? This will also delete all associated photos and estimates.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              await deleteJobAsync(jobId);
+              router.replace('/jobs');
+            } catch (e) {
+              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete job.');
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const load = useCallback(async () => {
     if (!jobId) return;
@@ -55,8 +80,19 @@ export default function JobDetailsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerCard}>
-        <Text style={styles.client}>{job.clientName}</Text>
-        <Text style={styles.type}>{job.projectType}</Text>
+        <View style={styles.headerRow}>
+          <View style={styles.headerInfo}>
+            <Text style={styles.client}>{job.clientName}</Text>
+            <Text style={styles.type}>{job.projectType}</Text>
+          </View>
+          <Pressable
+            style={[styles.deleteBtn, isDeleting && styles.deleteBtnDisabled]}
+            onPress={handleDelete}
+            disabled={isDeleting}
+          >
+            <Text style={styles.deleteBtnText}>🗑️</Text>
+          </Pressable>
+        </View>
         <View style={styles.badgeRow}>
           <View style={[styles.badge, styles.badgeMuted]}>
             <Text style={styles.badgeText}>{job.status}</Text>
@@ -114,6 +150,15 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   muted: { color: darkTheme.colors.textMuted, fontSize: fontSize.md },
   headerCard: { backgroundColor: darkTheme.colors.card, borderRadius: borderRadius.lg, padding: spacing.lg, ...shadows.sm },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerInfo: { flex: 1 },
+  deleteBtn: {
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.danger[500] + '20',
+  },
+  deleteBtnDisabled: { opacity: 0.5 },
+  deleteBtnText: { fontSize: fontSize.lg },
   client: { fontSize: fontSize['2xl'], fontWeight: '700', color: darkTheme.colors.text, marginBottom: spacing.xs },
   type: { fontSize: fontSize.md, color: darkTheme.colors.textMuted, marginBottom: spacing.md },
   badgeRow: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
