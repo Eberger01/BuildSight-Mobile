@@ -1,6 +1,7 @@
 import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { darkTheme } from '@/constants/theme';
 
@@ -13,6 +14,10 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+  // Add extra padding for Android gesture navigation bar
+  const bottomPadding = Math.max(insets.bottom, 8);
+
   return (
     <Tabs
       screenOptions={{
@@ -23,8 +28,8 @@ export default function TabLayout() {
           borderTopColor: darkTheme.colors.border,
           borderTopWidth: 1,
           paddingTop: 8,
-          paddingBottom: 8,
-          height: 65,
+          paddingBottom: bottomPadding,
+          height: 57 + bottomPadding,
         },
         tabBarLabelStyle: {
           fontSize: 11,
