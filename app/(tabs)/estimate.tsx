@@ -315,6 +315,7 @@ export default function EstimateScreen() {
       onPickImages={pickImages}
       onSubmit={handleSubmit}
       onSaveDraft={handleSaveDraft}
+      onClearForm={resetForm}
     />
   );
 }

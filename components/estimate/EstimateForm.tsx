@@ -26,10 +26,11 @@ type Props = {
   onPickImages: () => void;
   onSubmit: () => void;
   onSaveDraft?: () => void;
+  onClearForm?: () => void;
 };
 
 export function EstimateForm(props: Props) {
-  const { formData, photos, isLoading, error, onChange, onRemovePhoto, onTakePhoto, onPickImages, onSubmit, onSaveDraft } = props;
+  const { formData, photos, isLoading, error, onChange, onRemovePhoto, onTakePhoto, onPickImages, onSubmit, onSaveDraft, onClearForm } = props;
   const [showProjectTypes, setShowProjectTypes] = useState(false);
   const [showTimelines, setShowTimelines] = useState(false);
 
@@ -48,12 +49,16 @@ export function EstimateForm(props: Props) {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={styles.title}>New Project Estimate</Text>
             <Text style={styles.subtitle}>Fill in the details to generate an AI-powered estimate</Text>
           </View>
-          <View style={styles.aiBadge}>
-            <Text style={styles.aiBadgeText}>Powered by Gemini</Text>
+          <View style={styles.headerRight}>
+            {onClearForm && (
+              <TouchableOpacity style={styles.clearButton} onPress={onClearForm} disabled={isLoading}>
+                <Text style={styles.clearButtonText}>Clear</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -277,8 +282,19 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { padding: spacing.lg, paddingBottom: spacing['5xl'] },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.xl },
+  headerLeft: { flex: 1 },
+  headerRight: { alignItems: 'flex-end' },
   title: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: darkTheme.colors.text, marginBottom: spacing.xs },
   subtitle: { fontSize: fontSize.sm, color: darkTheme.colors.textMuted },
+  clearButton: {
+    backgroundColor: darkTheme.colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: darkTheme.colors.border,
+  },
+  clearButtonText: { color: darkTheme.colors.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
   aiBadge: {
     backgroundColor: colors.primary[500] + '20',
     paddingHorizontal: spacing.md,
