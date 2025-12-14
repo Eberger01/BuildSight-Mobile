@@ -1,10 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { styles } from '@/styles/settingsStyles';
 import { ProfileModal } from '@/components/settings/ProfileModal';
+import { CreditBadge } from '@/components/credits/CreditBadge';
+import { useCredits } from '@/contexts/CreditsContext';
 import { colors, darkTheme } from '@/constants/theme';
+import { CountryCode, CurrencyCode, getCountryList, COUNTRIES } from '@/constants/countries';
 import { resetDbAsync } from '@/data/db';
 import { deleteAllAppFilesAsync } from '@/data/files';
 import { defaultProfile, loadProfileAsync, ProfileData, saveProfileAsync } from '@/data/profile';
@@ -16,19 +20,39 @@ import { defaultSettings, ESTIMATE_DRAFT_KEY, loadSettingsAsync, SETTINGS_KEY, S
 import { isApiKeyConfigured } from '@/services/geminiService';
 import { exportJsonAndShareAsync } from '@/utils/exportDownload';
 
-const currencyOptions: Array<{ label: string; value: 'USD' | 'EUR' | 'BRL' }> = [
+const currencyOptions: Array<{ label: string; value: CurrencyCode }> = [
   { label: 'USD ($)', value: 'USD' },
   { label: 'EUR (€)', value: 'EUR' },
+  { label: 'GBP (£)', value: 'GBP' },
   { label: 'BRL (R$)', value: 'BRL' },
 ];
 
+const countryList = getCountryList();
+
 export default function SettingsScreen() {
+  const router = useRouter();
+  const { credits, planType, isBackendConfigured } = useCredits();
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [profile, setProfile] = useState<ProfileData>(defaultProfile);
   const [isBusy, setIsBusy] = useState(false);
+
+  // Get plan display name
+  const getPlanDisplayName = () => {
+    switch (planType) {
+      case 'pro_monthly':
+        return 'Pro Monthly';
+      case 'pack10':
+        return 'Credit Pack';
+      case 'single':
+        return 'Pay-as-you-go';
+      default:
+        return isBackendConfigured ? 'Free Plan' : 'Direct Mode';
+    }
+  };
 
   // Load settings on mount
   useEffect(() => {
@@ -80,18 +104,32 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleCurrencySelect = (value: 'USD' | 'EUR' | 'BRL') => {
+  const handleCurrencySelect = (value: CurrencyCode) => {
     saveSetting('currency', value);
     setCurrencyModalVisible(false);
+  };
+
+  const handleCountrySelect = (code: CountryCode) => {
+    const countryConfig = COUNTRIES[code];
+    // Update country and auto-set currency to match
+    saveSetting('country', code);
+    saveSetting('currency', countryConfig.currency);
+    setCountryModalVisible(false);
   };
 
   const getCurrencyLabel = () => {
     switch (settings.currency) {
       case 'USD': return 'USD ($)';
       case 'EUR': return 'EUR (€)';
+      case 'GBP': return 'GBP (£)';
       case 'BRL': return 'BRL (R$)';
-      default: return 'USD ($)';
+      default: return 'EUR (€)';
     }
+  };
+
+  const getCountryLabel = () => {
+    const country = COUNTRIES[settings.country];
+    return country ? `${country.flag} ${country.name}` : '🇩🇪 Germany';
   };
 
   const profileSubtitle = useMemo(() => {
@@ -280,6 +318,14 @@ export default function SettingsScreen() {
             />
           </View>
           <View style={styles.divider} />
+          <Pressable style={styles.settingRow} onPress={() => setCountryModalVisible(true)}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingLabel}>Country/Region</Text>
+              <Text style={styles.settingDescription}>{getCountryLabel()}</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <View style={styles.divider} />
           <Pressable style={styles.settingRow} onPress={() => setCurrencyModalVisible(true)}>
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Currency</Text>
@@ -315,12 +361,15 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <Pressable
             style={styles.settingRow}
-            onPress={() => Alert.alert('Subscription', 'Subscription management is not implemented yet.')}
+            onPress={() => router.push('/subscription')}
           >
             <View style={styles.settingInfo}>
               <Text style={styles.settingLabel}>Subscription</Text>
-              <Text style={styles.settingDescription}>Free Plan</Text>
+              <Text style={styles.settingDescription}>
+                {getPlanDisplayName()} {isBackendConfigured ? `• ${credits} credits` : ''}
+              </Text>
             </View>
+            {isBackendConfigured && <CreditBadge size="small" pressable={false} />}
             <Text style={styles.chevron}>›</Text>
           </Pressable>
         </View>
@@ -395,6 +444,56 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={styles.modalCancel}
               onPress={() => setCurrencyModalVisible(false)}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Country Selection Modal */}
+      <Modal
+        visible={countryModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setCountryModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCountryModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Country/Region</Text>
+            <Text style={styles.modalSubtitle}>Used for regional pricing in estimates</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              {countryList.map((country, index) => (
+                <TouchableOpacity
+                  key={country.code}
+                  style={[
+                    styles.modalOption,
+                    index < countryList.length - 1 && styles.modalOptionBorder,
+                    settings.country === country.code && styles.modalOptionSelected,
+                  ]}
+                  onPress={() => handleCountrySelect(country.code)}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      settings.country === country.code && styles.modalOptionTextSelected,
+                    ]}
+                  >
+                    {country.flag} {country.name}
+                  </Text>
+                  {settings.country === country.code && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCancel}
+              onPress={() => setCountryModalVisible(false)}
             >
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>

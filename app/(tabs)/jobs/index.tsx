@@ -3,7 +3,7 @@ import { deleteJobAsync, JobRow, listJobsAsync } from '@/data/repos/jobsRepo';
 import { formatCurrency } from '@/utils/formatters';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 
@@ -86,6 +86,16 @@ export default function JobsScreen() {
   };
 
   const swipeableRefs = useRef<Map<number, Swipeable>>(new Map());
+
+  // Clean up stale refs when jobs list changes (e.g., after deletion)
+  useEffect(() => {
+    const currentJobIds = new Set(jobs.map(job => job.id));
+    swipeableRefs.current.forEach((_, jobId) => {
+      if (!currentJobIds.has(jobId)) {
+        swipeableRefs.current.delete(jobId);
+      }
+    });
+  }, [jobs]);
 
   const handleDelete = (job: JobRow) => {
     Alert.alert(

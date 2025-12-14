@@ -5,6 +5,7 @@ import {
   MaterialRecommendations,
   ImageAnalysis
 } from '../types';
+import { CountryCode, CurrencyCode, getCountryConfig, getAreaUnit } from '../constants/countries';
 
 // Initialize Gemini AI with API key from environment variables
 // Note: In Expo, use EXPO_PUBLIC_ prefix for client-side env vars
@@ -30,14 +31,39 @@ function parseJsonResponse<T>(text: string): T {
 }
 
 /**
- * Generate AI-powered cost estimation for contractor projects
+ * Regional settings for cost estimation
  */
-export async function generateEstimate(projectData: ProjectData): Promise<Estimate> {
+export interface RegionSettings {
+  country: CountryCode;
+  currency: CurrencyCode;
+}
+
+/**
+ * Generate AI-powered cost estimation for contractor projects
+ * Uses regional settings for accurate local market pricing
+ */
+export async function generateEstimate(
+  projectData: ProjectData,
+  regionSettings: RegionSettings
+): Promise<Estimate> {
   try {
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+    const countryConfig = getCountryConfig(regionSettings.country);
+    const areaUnit = getAreaUnit(countryConfig.units);
+    const isMetric = countryConfig.units === 'metric';
 
     const prompt = `
 You are an expert contractor cost estimator with 20+ years of experience in residential construction and remodeling.
+
+**REGIONAL CONTEXT (CRITICAL - You MUST use local market rates for this country):**
+- Country: ${countryConfig.name}
+- Currency: ${regionSettings.currency}
+- Unit System: ${isMetric ? 'Metric (m², kg, cm, meters)' : 'Imperial (sq ft, lbs, inches, feet)'}
+- Typical Labor Rates in ${countryConfig.name}: ${countryConfig.laborRateRange}
+- VAT/Tax Rate: ${countryConfig.vatRate}
+- Permit Requirements: ${countryConfig.permitInfo}
+
+IMPORTANT: All costs MUST be in ${regionSettings.currency}. Use ${countryConfig.name} market prices for materials and labor. All area measurements should be in ${areaUnit}.
 
 Based on the following project details, provide a detailed and accurate cost estimate:
 
@@ -45,7 +71,7 @@ Based on the following project details, provide a detailed and accurate cost est
 - Client: ${projectData.clientName}
 - Project Type: ${projectData.projectType}
 - Description: ${projectData.description}
-- Square Footage: ${projectData.squareFootage || 'Not specified'} sq ft
+- Area: ${projectData.squareFootage || 'Not specified'} ${areaUnit}
 - Preferred Timeline: ${projectData.timeline || 'Flexible'}
 
 **Please provide a comprehensive estimate in the following JSON format:**
@@ -55,21 +81,21 @@ Based on the following project details, provide a detailed and accurate cost est
     "min": <number>,
     "max": <number>,
     "average": <number>,
-    "currency": "EUR"
+    "currency": "${regionSettings.currency}"
   },
   "breakdown": {
     "materials": {
       "cost": <number>,
       "items": [
-        {"item": "...", "quantity": "...", "unitCost": <number>, "total": <number>}
+        {"item": "...", "quantity": "... ${areaUnit}", "unitCost": <number>, "total": <number>}
       ]
     },
     "labor": {
       "cost": <number>,
       "hours": <number>,
-      "hourlyRate": <number>
+      "hourlyRate": <number based on ${countryConfig.laborRateRange}>
     },
-    "permits": <number>,
+    "permits": <number based on ${countryConfig.name} requirements>,
     "contingency": <number>,
     "overhead": <number>
   },
@@ -85,10 +111,10 @@ Based on the following project details, provide a detailed and accurate cost est
   "recommendations": [
     "..."
   ],
-  "notes": "Additional information or considerations"
+  "notes": "Additional information including ${countryConfig.name}-specific considerations"
 }
 
-Ensure all costs are realistic for the current market (2025) and consider regional variations. Be thorough and detailed.
+Ensure all costs are realistic for the ${countryConfig.name} market in 2025. Include any country-specific requirements or regulations. Be thorough and detailed.
 `;
 
     const result = await model.generateContent(prompt);

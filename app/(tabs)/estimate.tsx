@@ -7,11 +7,14 @@ import { Alert } from 'react-native';
 import { AssignEstimateModal } from '@/components/estimate/AssignEstimateModal';
 import { EstimateForm } from '@/components/estimate/EstimateForm';
 import { EstimateResults } from '@/components/estimate/EstimateResults';
+import { CreditWarningBanner } from '@/components/credits/CreditBadge';
+import { useCredits, useCanGenerateEstimate } from '@/contexts/CreditsContext';
 import { importPhotoToAppStorageAsync } from '@/data/files';
 import { createEstimateAsync, updateEstimateJobIdAsync, updateEstimatePdfPathAsync } from '@/data/repos/estimatesRepo';
 import { createJobAsync, JobRow, listJobsAsync } from '@/data/repos/jobsRepo';
 import { createPhotoAsync } from '@/data/repos/photosRepo';
 import { defaultSettings, ESTIMATE_DRAFT_KEY, loadSettingsAsync, SettingsData } from '@/data/settings';
+import { generateEstimateSecure, isBackendEnabled } from '@/services/estimateService';
 import { generateEstimate } from '@/services/geminiService';
 import { Estimate, Photo, ProjectData } from '@/types';
 import { buildEstimatePdfHtml } from '@/utils/estimatePdf';
@@ -20,6 +23,8 @@ import { printHtmlToPdfAndShareAsync } from '@/utils/exportDownload';
 
 export default function EstimateScreen() {
   const router = useRouter();
+  const { refreshCredits, isBackendConfigured } = useCredits();
+  const { canGenerate, reason: cannotGenerateReason } = useCanGenerateEstimate();
   const [formData, setFormData] = useState<ProjectData>({
     clientName: '',
     email: '',
@@ -141,6 +146,23 @@ export default function EstimateScreen() {
       return;
     }
 
+    // Check if user can generate estimates (credits check)
+    if (isBackendConfigured && !canGenerate) {
+      if (cannotGenerateReason === 'No credits available') {
+        Alert.alert(
+          'No Credits',
+          'You need credits to generate an AI estimate. Would you like to purchase credits?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Buy Credits', onPress: () => router.push('/subscription') },
+          ]
+        );
+      } else {
+        Alert.alert('Cannot Generate Estimate', cannotGenerateReason || 'Please try again later.');
+      }
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setEstimate(null);
@@ -148,10 +170,26 @@ export default function EstimateScreen() {
     setAssignedJobLabel(null);
 
     try {
-      console.log('Generating AI estimate for:', formData);
-      const result = await generateEstimate(formData);
+      console.log('Generating AI estimate for:', formData, 'Country:', settings.country);
+
+      // Use secure backend if configured, otherwise fall back to direct Gemini
+      const result = isBackendEnabled()
+        ? await generateEstimateSecure(formData, {
+            country: settings.country,
+            currency: settings.currency,
+          })
+        : await generateEstimate(formData, {
+            country: settings.country,
+            currency: settings.currency,
+          });
+
       console.log('AI Estimate Result:', result);
       setEstimate(result);
+
+      // Refresh credits after successful estimate (deducts 1 credit)
+      if (isBackendConfigured) {
+        await refreshCredits();
+      }
 
       const id = await createEstimateAsync({
         jobId: null,
@@ -163,7 +201,21 @@ export default function EstimateScreen() {
       setEstimateId(id);
     } catch (err) {
       console.error('Error generating estimate:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate estimate. Please try again.');
+
+      // Handle specific credit-related errors
+      const errorMessage = err instanceof Error ? err.message : 'Failed to generate estimate. Please try again.';
+      if (errorMessage.includes('credits') || errorMessage.includes('INSUFFICIENT_CREDITS')) {
+        Alert.alert(
+          'No Credits',
+          'You need credits to generate an AI estimate.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Buy Credits', onPress: () => router.push('/subscription') },
+          ]
+        );
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setIsLoading(false);
     }

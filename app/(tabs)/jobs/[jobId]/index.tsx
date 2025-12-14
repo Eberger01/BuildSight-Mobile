@@ -189,5 +189,3 @@ const styles = StyleSheet.create({
   primaryBtn: { backgroundColor: colors.primary[500] },
   primaryBtnText: { color: colors.white },
 });
-
-

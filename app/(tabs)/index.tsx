@@ -1,13 +1,13 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, StyleSheet, View, Text, ScrollView, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { colors, spacing, borderRadius, fontSize, shadows, darkTheme } from '@/constants/theme';
-import { listJobsAsync, JobRow } from '@/data/repos/jobsRepo';
-import { listTasksAsync, TaskRow, toggleTaskCompletedAsync } from '@/data/repos/tasksRepo';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
 import { countEstimatesAsync } from '@/data/repos/estimatesRepo';
-import { formatCurrency } from '@/utils/formatters';
+import { JobRow, listJobsAsync } from '@/data/repos/jobsRepo';
+import { listTasksAsync, TaskRow, toggleTaskCompletedAsync } from '@/data/repos/tasksRepo';
 import { loadSettingsAsync } from '@/data/settings';
+import { formatCurrency } from '@/utils/formatters';
 
 export default function DashboardScreen() {
   const router = useRouter();

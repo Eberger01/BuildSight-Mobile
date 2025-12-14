@@ -1,0 +1,26 @@
+# Ignore node_modules (EAS installs fresh)
+node_modules/
+
+# Ignore git
+.git/
+
+# Ignore local env files
+.env
+.env.local
+
+# Ignore IDE files
+.vscode/
+.idea/
+
+# Ignore OneDrive temp files
+~$*
+*.tmp
+desktop.ini
+
+# Ignore Supabase local files
+supabase/.temp/
+supabase/.branches/
+
+# Ignore build artifacts
+*.log
+*.tsbuildinfo

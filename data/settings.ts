@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CountryCode, CurrencyCode } from '@/constants/countries';
 
 export const SETTINGS_KEY = 'buildsight_settings';
 export const ESTIMATE_DRAFT_KEY = 'buildsight_estimate_draft';
@@ -9,7 +10,8 @@ export type SettingsData = {
   autoSave: boolean;
   autoUpload: boolean;
   photoQuality: 'high' | 'medium' | 'low';
-  currency: 'USD' | 'EUR' | 'BRL';
+  currency: CurrencyCode;
+  country: CountryCode;
 };
 
 export const defaultSettings: SettingsData = {
@@ -19,6 +21,7 @@ export const defaultSettings: SettingsData = {
   autoUpload: false,
   photoQuality: 'high',
   currency: 'EUR',
+  country: 'DE',
 };
 
 export async function loadSettingsAsync(): Promise<SettingsData> {
