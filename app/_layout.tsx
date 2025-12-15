@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { CreditsProvider } from '@/contexts/CreditsContext';
@@ -29,20 +30,17 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
+  // Hide splash screen immediately on mount
+  useEffect(() => {
+    SplashScreen.hideAsync();
+  }, []);
+
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
+    if (error) {
+      console.error('Font loading error:', error);
     }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
+  }, [error]);
 
   return <RootLayoutNav />;
 }
@@ -51,15 +49,17 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <CreditsProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-          </Stack>
-        </ThemeProvider>
-      </CreditsProvider>
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <CreditsProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+            </Stack>
+          </ThemeProvider>
+        </CreditsProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }

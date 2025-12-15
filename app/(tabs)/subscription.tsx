@@ -62,7 +62,20 @@ export default function SubscriptionScreen() {
     try {
       setIsLoadingPackages(true);
       const pkgs = await getPackages();
-      setPackages(pkgs);
+
+      // Sort packages: single credit first, then pack10, then subscription
+      const sortedPkgs = pkgs.sort((a, b) => {
+        const aId = a.product.identifier;
+        const bId = b.product.identifier;
+
+        if (aId.includes('single')) return -1;
+        if (bId.includes('single')) return 1;
+        if (aId.includes('pack10')) return -1;
+        if (bId.includes('pack10')) return 1;
+        return 0;
+      });
+
+      setPackages(sortedPkgs);
     } catch (error) {
       console.error('Failed to load packages:', error);
     } finally {
@@ -442,11 +455,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   pricingCard: {
-    backgroundColor: colors.dark.card,
+    backgroundColor: '#1e293b',
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.dark.border,
+    borderColor: '#334155',
     alignItems: 'center',
   },
   popularCard: {
@@ -497,7 +510,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   buyButton: {
-    backgroundColor: colors.dark.border,
+    backgroundColor: '#334155',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
@@ -513,7 +526,7 @@ const styles = StyleSheet.create({
     color: darkTheme.colors.text,
   },
   unavailableButton: {
-    backgroundColor: colors.dark.border,
+    backgroundColor: '#334155',
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,

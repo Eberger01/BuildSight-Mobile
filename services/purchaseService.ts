@@ -149,7 +149,15 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<CustomerIn
  */
 export async function purchaseProduct(productId: string): Promise<CustomerInfo> {
   const packages = await getPackages();
-  const pkg = packages.find((p) => p.product.identifier === productId);
+
+  // Try exact match first, then check if productId matches the base product (without suffix)
+  // RevenueCat appends duration suffixes like :monthly, :annual to subscriptions
+  let pkg = packages.find((p) => p.product.identifier === productId);
+
+  if (!pkg) {
+    // Try matching base product ID (e.g., "buildsight_pro_monthly" matches "buildsight_pro_monthly:monthly")
+    pkg = packages.find((p) => p.product.identifier.startsWith(productId));
+  }
 
   if (!pkg) {
     throw new Error('Product not found');
@@ -219,7 +227,14 @@ export function isPurchasesAvailable(): boolean {
  * Get credits for a product
  */
 export function getCreditsForProduct(productId: string): number {
-  return PRODUCT_CREDITS[productId] || 0;
+  // Try exact match first
+  if (PRODUCT_CREDITS[productId]) {
+    return PRODUCT_CREDITS[productId];
+  }
+
+  // Try matching base product ID (handle RevenueCat subscription suffixes like :monthly)
+  const baseProductId = productId.split(':')[0];
+  return PRODUCT_CREDITS[baseProductId] || 0;
 }
 
 /**
@@ -233,7 +248,10 @@ export function formatPrice(pkg: PurchasesPackage): string {
  * Get product description
  */
 export function getProductDescription(productId: string): string {
-  switch (productId) {
+  // Handle RevenueCat subscription suffixes (e.g., "buildsight_pro_monthly:monthly")
+  const baseProductId = productId.split(':')[0];
+
+  switch (baseProductId) {
     case PRODUCTS.SINGLE_CREDIT:
       return '1 AI Estimate Credit';
     case PRODUCTS.PACK_10:
