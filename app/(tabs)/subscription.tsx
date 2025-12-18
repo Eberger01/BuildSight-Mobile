@@ -352,7 +352,7 @@ export default function SubscriptionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.dark.background,
+    backgroundColor: darkTheme.colors.background,
   },
   scrollView: {
     flex: 1,
@@ -372,15 +372,15 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: fontSize.md,
-    color: colors.dark.textMuted,
+    color: darkTheme.colors.textMuted,
   },
   balanceCard: {
-    backgroundColor: colors.dark.card,
+    backgroundColor: darkTheme.colors.card,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     marginBottom: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.dark.border,
+    borderColor: darkTheme.colors.border,
   },
   balanceRow: {
     flexDirection: 'row',
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: fontSize.sm,
-    color: colors.dark.textMuted,
+    color: darkTheme.colors.textMuted,
     marginBottom: spacing.xs,
   },
   balanceValue: {
@@ -414,12 +414,12 @@ const styles = StyleSheet.create({
   },
   usageText: {
     fontSize: fontSize.sm,
-    color: colors.dark.textMuted,
+    color: darkTheme.colors.textMuted,
     marginBottom: spacing.xs,
   },
   usageBar: {
     height: 4,
-    backgroundColor: colors.dark.border,
+    backgroundColor: darkTheme.colors.border,
     borderRadius: borderRadius.full,
     overflow: 'hidden',
   },
@@ -455,11 +455,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   pricingCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: darkTheme.colors.card,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: darkTheme.colors.border,
     alignItems: 'center',
   },
   popularCard: {
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
   },
   cardCredits: {
     fontSize: fontSize.md,
-    color: colors.dark.textMuted,
+    color: darkTheme.colors.textMuted,
     marginBottom: spacing.sm,
   },
   cardPrice: {
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   },
   cardDescription: {
     fontSize: fontSize.sm,
-    color: colors.dark.textMuted,
+    color: darkTheme.colors.textMuted,
     textAlign: 'center',
     marginBottom: spacing.md,
   },
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   buyButton: {
-    backgroundColor: '#334155',
+    backgroundColor: darkTheme.colors.cardElevated,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
     color: darkTheme.colors.text,
   },
   unavailableButton: {
-    backgroundColor: '#334155',
+    backgroundColor: darkTheme.colors.cardElevated,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   unavailableButtonText: {
     fontSize: fontSize.md,
     fontWeight: '600',
-    color: colors.dark.textMuted,
+    color: darkTheme.colors.textMuted,
   },
   restoreButton: {
     alignItems: 'center',
@@ -550,11 +550,11 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   infoSection: {
-    backgroundColor: colors.dark.card,
+    backgroundColor: darkTheme.colors.card,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.dark.border,
+    borderColor: darkTheme.colors.border,
   },
   infoTitle: {
     fontSize: fontSize.md,
@@ -582,11 +582,11 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     fontSize: fontSize.sm,
-    color: colors.dark.textMuted,
+    color: darkTheme.colors.textMuted,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.dark.background + 'E6',
+    backgroundColor: darkTheme.colors.background + 'E6',
     justifyContent: 'center',
     alignItems: 'center',
   },

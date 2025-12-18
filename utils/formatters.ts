@@ -2,17 +2,52 @@
  * BuildSight Utility Functions - Formatters
  */
 
+import { CountryCode } from '@/constants/countries';
+
 /**
- * Format currency in EUR (German locale, no decimals)
- * Example: 45000 -> "45.000 €"
+ * Locale mapping by country code for proper number/currency formatting
  */
-export function formatCurrency(amount: number, currency: string = 'EUR'): string {
-  return new Intl.NumberFormat('de-DE', {
+const COUNTRY_LOCALE_MAP: Record<CountryCode, string> = {
+  DE: 'de-DE',
+  FR: 'fr-FR',
+  ES: 'es-ES',
+  IT: 'it-IT',
+  NL: 'nl-NL',
+  BE: 'nl-BE',
+  AT: 'de-AT',
+  UK: 'en-GB',
+  US: 'en-US',
+  BR: 'pt-BR',
+};
+
+/**
+ * Get locale string for a country code
+ */
+export function getLocaleForCountry(country: CountryCode): string {
+  return COUNTRY_LOCALE_MAP[country] || 'de-DE';
+}
+
+/**
+ * Format currency with country-aware locale (no decimals)
+ * Example: formatCurrency(45000, 'EUR', 'DE') -> "45.000 €"
+ * Example: formatCurrency(45000, 'USD', 'US') -> "$45,000"
+ */
+export function formatCurrency(amount: number, currency: string = 'EUR', country?: CountryCode): string {
+  const locale = country ? getLocaleForCountry(country) : 'de-DE';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
+}
+
+/**
+ * Format number with country-aware locale
+ */
+export function formatNumber(value: number, country?: CountryCode): string {
+  const locale = country ? getLocaleForCountry(country) : 'de-DE';
+  return new Intl.NumberFormat(locale).format(value);
 }
 
 /**

@@ -5,21 +5,34 @@ import {
   MaterialRecommendations,
   ImageAnalysis
 } from '../types';
-import { CountryCode, CurrencyCode, getCountryConfig, getAreaUnit } from '../constants/countries';
+import { CountryCode, CurrencyCode, getCountryConfig } from '../constants/countries';
+import { ESTIMATE_RESPONSE_SCHEMA, validateEstimateTotals, normalizeEstimate } from './estimateSchema';
+import { buildEstimatePrompt, buildEstimatePromptLegacy } from './estimatePrompt';
 
 // Initialize Gemini AI with API key from environment variables
 // Note: In Expo, use EXPO_PUBLIC_ prefix for client-side env vars
 const API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Model configuration - Gemini 3 Pro Preview
-// https://ai.google.dev/gemini-api/docs/gemini-3
-const MODEL_NAME = 'gemini-3-pro-preview';
+// Model configuration - Gemini 2.0 Flash (supports JSON mode + schema)
+// https://ai.google.dev/gemini-api/docs/json-mode
+const MODEL_NAME = 'gemini-2.0-flash';
+
+// Feature flag for structured JSON output (schema-locked)
+const USE_STRUCTURED_OUTPUT = true;
 
 /**
  * Parse JSON from AI response (handles markdown code blocks)
+ * Used as fallback when structured output is not available
  */
 function parseJsonResponse<T>(text: string): T {
+  // First try direct JSON parse (for structured output mode)
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // Fall back to regex extraction for markdown-wrapped JSON
+  }
+
   const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/\{[\s\S]*\}/);
 
   if (jsonMatch) {
@@ -40,88 +53,61 @@ export interface RegionSettings {
 
 /**
  * Generate AI-powered cost estimation for contractor projects
- * Uses regional settings for accurate local market pricing
+ * Uses structured JSON output with schema validation for reliable parsing.
+ * Falls back to regex parsing if structured output fails.
  */
 export async function generateEstimate(
   projectData: ProjectData,
   regionSettings: RegionSettings
 ): Promise<Estimate> {
   try {
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
     const countryConfig = getCountryConfig(regionSettings.country);
-    const areaUnit = getAreaUnit(countryConfig.units);
-    const isMetric = countryConfig.units === 'metric';
 
-    const prompt = `
-You are an expert contractor cost estimator with 20+ years of experience in residential construction and remodeling.
+    // Build the professional estimation prompt
+    const promptCtx = {
+      projectData,
+      countryConfig,
+      currency: regionSettings.currency,
+    };
 
-**REGIONAL CONTEXT (CRITICAL - You MUST use local market rates for this country):**
-- Country: ${countryConfig.name}
-- Currency: ${regionSettings.currency}
-- Unit System: ${isMetric ? 'Metric (m², kg, cm, meters)' : 'Imperial (sq ft, lbs, inches, feet)'}
-- Typical Labor Rates in ${countryConfig.name}: ${countryConfig.laborRateRange}
-- VAT/Tax Rate: ${countryConfig.vatRate}
-- Permit Requirements: ${countryConfig.permitInfo}
+    let estimate: Estimate;
 
-IMPORTANT: All costs MUST be in ${regionSettings.currency}. Use ${countryConfig.name} market prices for materials and labor. All area measurements should be in ${areaUnit}.
+    if (USE_STRUCTURED_OUTPUT) {
+      // Use structured JSON output with schema (preferred)
+      const model = genAI.getGenerativeModel({
+        model: MODEL_NAME,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: ESTIMATE_RESPONSE_SCHEMA as any,
+        },
+      });
 
-Based on the following project details, provide a detailed and accurate cost estimate:
+      const prompt = buildEstimatePrompt(promptCtx);
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
 
-**Project Information:**
-- Client: ${projectData.clientName}
-- Project Type: ${projectData.projectType}
-- Description: ${projectData.description}
-- Area: ${projectData.squareFootage || 'Not specified'} ${areaUnit}
-- Preferred Timeline: ${projectData.timeline || 'Flexible'}
+      estimate = parseJsonResponse<Estimate>(text);
+    } else {
+      // Legacy mode: no schema, regex parsing
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const prompt = buildEstimatePromptLegacy(promptCtx);
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
 
-**Please provide a comprehensive estimate in the following JSON format:**
+      estimate = parseJsonResponse<Estimate>(text);
+    }
 
-{
-  "totalEstimate": {
-    "min": <number>,
-    "max": <number>,
-    "average": <number>,
-    "currency": "${regionSettings.currency}"
-  },
-  "breakdown": {
-    "materials": {
-      "cost": <number>,
-      "items": [
-        {"item": "...", "quantity": "... ${areaUnit}", "unitCost": <number>, "total": <number>}
-      ]
-    },
-    "labor": {
-      "cost": <number>,
-      "hours": <number>,
-      "hourlyRate": <number based on ${countryConfig.laborRateRange}>
-    },
-    "permits": <number based on ${countryConfig.name} requirements>,
-    "contingency": <number>,
-    "overhead": <number>
-  },
-  "timeline": {
-    "estimatedDays": <number>,
-    "phases": [
-      {"phase": "...", "duration": "..."}
-    ]
-  },
-  "risks": [
-    {"risk": "...", "mitigation": "...", "impact": "low|medium|high"}
-  ],
-  "recommendations": [
-    "..."
-  ],
-  "notes": "Additional information including ${countryConfig.name}-specific considerations"
-}
+    // Validate and normalize the estimate
+    const validation = validateEstimateTotals(estimate);
+    if (!validation.valid) {
+      console.warn('Estimate validation warnings:', validation.errors);
+      // Continue anyway - validation is advisory for MVP
+    }
 
-Ensure all costs are realistic for the ${countryConfig.name} market in 2025. Include any country-specific requirements or regulations. Be thorough and detailed.
-`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
-    return parseJsonResponse<Estimate>(text);
+    // Normalize for backward compatibility (adds legacy fields)
+    return normalizeEstimate(estimate);
 
   } catch (error) {
     console.error('Error generating estimate with Gemini:', error);

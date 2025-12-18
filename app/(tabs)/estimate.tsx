@@ -279,7 +279,12 @@ export default function EstimateScreen() {
     if (!estimate || !estimateId) return;
     try {
       setIsBusy(true);
-      const html = buildEstimatePdfHtml({ project: formData, estimate, currency });
+      const html = buildEstimatePdfHtml({ 
+        project: formData, 
+        estimate, 
+        currency,
+        country: settings.country,
+      });
       const baseName = `${formData.clientName || 'client'}_estimate`;
       const result = await printHtmlToPdfAndShareAsync({ html, baseName, dialogTitle: 'Share estimate PDF' });
       if (result?.savedPath) {
@@ -355,6 +360,7 @@ export default function EstimateScreen() {
           project={formData}
           estimate={estimate}
           currency={currency}
+          country={settings.country}
           isBusy={isBusy}
           onNewEstimate={resetForm}
           onAssignToJob={() => setAssignModalVisible(true)}

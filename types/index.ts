@@ -41,12 +41,34 @@ export interface Risk {
   impact: 'low' | 'medium' | 'high';
 }
 
+/**
+ * Cost range for net/gross totals
+ */
+export interface CostRange {
+  min: number;
+  max: number;
+  average: number;
+}
+
+/**
+ * Professional estimate with net+gross totals and VAT/tax breakdown
+ */
 export interface Estimate {
   totalEstimate: {
-    min: number;
-    max: number;
-    average: number;
+    /** Net costs (before tax) */
+    net: CostRange;
+    /** Gross costs (including tax) */
+    gross: CostRange;
+    /** VAT/tax rate as decimal (e.g., 0.19 for 19%) */
+    taxRate: number;
+    /** Tax amount based on net average */
+    taxAmount: number;
+    /** Currency code (EUR, USD, GBP, BRL) */
     currency: string;
+    // Legacy fields for backward compatibility
+    min?: number;
+    max?: number;
+    average?: number;
   };
   breakdown: {
     materials: {
@@ -57,10 +79,16 @@ export interface Estimate {
       cost: number;
       hours: number;
       hourlyRate: number;
+      /** Optional trade breakdown for transparency */
+      trades?: Array<{ trade: string; hours: number; rate: number; cost: number }>;
     };
     permits: number;
     contingency: number;
+    /** Contingency percentage basis (e.g., 0.10 for 10%) */
+    contingencyRate?: number;
     overhead: number;
+    /** Overhead percentage basis (e.g., 0.15 for 15%) */
+    overheadRate?: number;
   };
   timeline: {
     estimatedDays: number;
@@ -68,6 +96,11 @@ export interface Estimate {
   };
   risks: Risk[];
   recommendations: string[];
+  /** Key assumptions made in the estimate */
+  assumptions: string[];
+  /** Items explicitly excluded from the estimate */
+  exclusions: string[];
+  /** Additional notes including country-specific considerations */
   notes: string;
 }
 
