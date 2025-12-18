@@ -64,14 +64,34 @@ serve(async (req) => {
     // Get raw body for signature verification
     const bodyText = await req.text();
 
-    // Verify webhook signature
+    // Verify webhook signature (check both Authorization header and x-revenuecat-signature)
+    const authHeader = req.headers.get('authorization');
     const signature = req.headers.get('x-revenuecat-signature');
-    if (webhookSecret && !verifySignature(bodyText, signature, webhookSecret)) {
-      console.error('Invalid webhook signature');
-      return new Response(
-        JSON.stringify({ error: 'Invalid signature' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+
+    console.log('Auth debug - Authorization header present:', !!authHeader);
+    console.log('Auth debug - x-revenuecat-signature present:', !!signature);
+    console.log('Auth debug - Webhook secret configured:', !!webhookSecret);
+
+    // If webhook secret is configured, verify the signature
+    if (webhookSecret) {
+      // Check Authorization header first (format: "Bearer <secret>")
+      const authToken = authHeader?.replace('Bearer ', '');
+      const isAuthValid = authToken === webhookSecret;
+      const isSignatureValid = verifySignature(bodyText, signature, webhookSecret);
+
+      console.log('Auth debug - Auth header valid:', isAuthValid);
+      console.log('Auth debug - Signature valid:', isSignatureValid);
+
+      if (!isAuthValid && !isSignatureValid) {
+        console.error('Invalid webhook authentication - both methods failed');
+        return new Response(
+          JSON.stringify({ error: 'Invalid authentication' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      console.log('Auth debug - Authentication successful');
+    } else {
+      console.warn('Auth debug - No webhook secret configured, skipping verification');
     }
 
     // Parse webhook payload
@@ -101,18 +121,21 @@ serve(async (req) => {
       .eq('device_id', appUserId)
       .single();
 
+    console.log('User lookup by device_id result:', { found: !!user, error: userError?.message });
+
     // If not found by device_id, try revenuecat_customer_id
     if (!user) {
-      const { data: userByRC } = await supabase
+      const { data: userByRC, error: rcError } = await supabase
         .from('users')
         .select('id, plan_type')
         .eq('revenuecat_customer_id', appUserId)
         .single();
       user = userByRC;
+      console.log('User lookup by revenuecat_customer_id result:', { found: !!user, error: rcError?.message });
     }
 
     if (!user) {
-      console.error(`User not found for app_user_id: ${appUserId}`);
+      console.error(`User not found for app_user_id: ${appUserId}. Checked device_id and revenuecat_customer_id columns.`);
       // Return 200 to acknowledge receipt (don't want RevenueCat to retry endlessly)
       return new Response(
         JSON.stringify({ warning: 'User not found', app_user_id: appUserId }),
@@ -135,9 +158,11 @@ serve(async (req) => {
         const credits = PRODUCT_CREDITS[productId] || 0;
         const planType = PRODUCT_PLAN_TYPE[productId] || 'single';
 
+        console.log(`Purchase event - productId: ${productId}, credits to add: ${credits}, planType: ${planType}`);
+
         if (credits > 0) {
           // Add credits to wallet
-          await supabase.rpc('add_credits', {
+          const { data: rpcResult, error: rpcError } = await supabase.rpc('add_credits', {
             p_user_id: user.id,
             p_amount: credits,
             p_transaction_type: 'purchase',
@@ -145,13 +170,25 @@ serve(async (req) => {
             p_description: `Purchase: ${productId} (${credits} credits)`,
           });
 
+          if (rpcError) {
+            console.error('Error adding credits via RPC:', rpcError);
+          } else {
+            console.log('RPC add_credits result:', rpcResult);
+          }
+
           // Update plan type
-          await supabase
+          const { error: updateError } = await supabase
             .from('users')
             .update({ plan_type: planType, updated_at: new Date().toISOString() })
             .eq('id', user.id);
 
+          if (updateError) {
+            console.error('Error updating plan type:', updateError);
+          }
+
           console.log(`Added ${credits} credits to user ${user.id} for ${productId}`);
+        } else {
+          console.warn(`No credits configured for productId: ${productId}`);
         }
         break;
       }

@@ -83,6 +83,14 @@ export default function TabLayout() {
           headerTitle: 'Settings',
         }}
       />
+      <Tabs.Screen
+        name="subscription"
+        options={{
+          title: 'Credits',
+          tabBarIcon: ({ color }) => <TabBarIcon name="diamond" color={color} />,
+          headerTitle: 'Purchase Credits',
+        }}
+      />
     </Tabs>
   );
 }
