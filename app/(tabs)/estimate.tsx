@@ -93,7 +93,7 @@ export default function EstimateScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      allowsMultipleSelection: true,
+      allowsMultipleSelection: false, // Disabled due to iOS 26 dismissal bug
       quality: photoQualityToExpo(settings.photoQuality),
     });
 
