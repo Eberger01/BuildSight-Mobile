@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
 import { MIGRATION_001_INITIAL } from './migrations/001_initial';
+import { MIGRATION_002_TASKS_JOB_LINK } from './migrations/002_tasks_job_link';
 
 const DB_NAME = 'buildsight.db';
 
@@ -9,7 +10,10 @@ type Migration = {
   sql: string;
 };
 
-const MIGRATIONS: Migration[] = [MIGRATION_001_INITIAL].sort((a, b) => a.version - b.version);
+const MIGRATIONS: Migration[] = [
+  MIGRATION_001_INITIAL,
+  MIGRATION_002_TASKS_JOB_LINK,
+].sort((a, b) => a.version - b.version);
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 let initPromise: Promise<SQLite.SQLiteDatabase> | null = null;

@@ -1,18 +1,18 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
 import { countEstimatesAsync } from '@/data/repos/estimatesRepo';
 import { JobRow, listJobsAsync } from '@/data/repos/jobsRepo';
-import { listTasksAsync, TaskRow, toggleTaskCompletedAsync } from '@/data/repos/tasksRepo';
+import { listTasksWithJobAsync, TaskWithJob, toggleTaskCompletedAsync } from '@/data/repos/tasksRepo';
 import { loadSettingsAsync } from '@/data/settings';
 import { formatCurrency } from '@/utils/formatters';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const [jobs, setJobs] = useState<JobRow[]>([]);
-  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [tasks, setTasks] = useState<TaskWithJob[]>([]);
   const [estimatesCount, setEstimatesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [currency, setCurrency] = useState('EUR');
@@ -47,7 +47,7 @@ export default function DashboardScreen() {
   const refresh = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [j, t, eCount, s] = await Promise.all([listJobsAsync(), listTasksAsync(8), countEstimatesAsync(), loadSettingsAsync()]);
+      const [j, t, eCount, s] = await Promise.all([listJobsAsync(), listTasksWithJobAsync(8), countEstimatesAsync(), loadSettingsAsync()]);
       setJobs(j);
       setTasks(t);
       setEstimatesCount(eCount);
@@ -168,22 +168,25 @@ export default function DashboardScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
-          <Pressable onPress={() => Alert.alert('Coming soon', 'Calendar view is not implemented yet.')}>
+          <Pressable onPress={() => router.push('/calendar')}>
             <Text style={styles.viewAllLink}>View Calendar →</Text>
           </Pressable>
         </View>
         <View style={styles.tasksList}>
           {tasks.map((item) => (
-            <View key={item.id} style={styles.taskItem}>
+            <Pressable key={item.id} style={styles.taskItem} onPress={() => router.push(`/calendar/${item.id}`)}>
               <View style={[styles.taskPriority, { backgroundColor: getPriorityColor(item.priority) }]} />
               <View style={styles.taskContent}>
-                <Text style={styles.taskName}>{item.title}</Text>
-                <Text style={styles.taskTime}>{item.dueAt ? item.dueAt.slice(0, 10) : ''}</Text>
+                <Text style={[styles.taskName, item.completed === 1 && styles.taskNameCompleted]}>{item.title}</Text>
+                <Text style={styles.taskTime}>
+                  {item.dueAt ? item.dueAt.slice(0, 10) : 'No date'}
+                  {item.jobClientName ? ` • ${item.jobClientName}` : ''}
+                </Text>
               </View>
-              <Pressable style={styles.checkBtn} onPress={() => toggleTask(item.id)}>
-                <Text style={styles.checkBtnText}>{item.completed ? '↺' : '✓'}</Text>
+              <Pressable style={styles.checkBtn} onPress={(e) => { e.stopPropagation(); toggleTask(item.id); }}>
+                <Text style={styles.checkBtnText}>{item.completed === 1 ? '↺' : '✓'}</Text>
               </Pressable>
-            </View>
+            </Pressable>
           ))}
 
           {tasks.length === 0 && (
@@ -399,6 +402,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: darkTheme.colors.text,
     marginBottom: spacing.xs,
+  },
+  taskNameCompleted: {
+    textDecorationLine: 'line-through',
+    color: darkTheme.colors.textMuted,
   },
   taskTime: {
     fontSize: fontSize.xs,
