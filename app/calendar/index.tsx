@@ -10,6 +10,7 @@ import {
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Calendar, DateData } from 'react-native-calendars';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors, borderRadius, fontSize, spacing, shadows } from '../../constants/theme';
 import { TaskListSimple } from '../../components/tasks/TaskList';
 import { TaskFormModal } from '../../components/tasks/TaskFormModal';
@@ -33,6 +34,7 @@ type MarkedDates = {
 
 export default function CalendarScreen() {
   const router = useRouter();
+  const { t, i18n } = useTranslation();
   const today = new Date().toISOString().slice(0, 10);
 
   const [selectedDate, setSelectedDate] = useState(today);
@@ -116,12 +118,13 @@ export default function CalendarScreen() {
   const formatSelectedDate = (dateStr: string): string => {
     const date = new Date(dateStr + 'T12:00:00');
     const isToday = dateStr === today;
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-    const formatted = date.toLocaleDateString('en-US', {
+    const locale = i18n.language || 'en';
+    const dayName = date.toLocaleDateString(locale, { weekday: 'long' });
+    const formatted = date.toLocaleDateString(locale, {
       month: 'long',
       day: 'numeric',
     });
-    return isToday ? `Today, ${formatted}` : `${dayName}, ${formatted}`;
+    return isToday ? `${t('calendar.today')}, ${formatted}` : `${dayName}, ${formatted}`;
   };
 
   // Calendar theme matching the app's dark theme
@@ -175,7 +178,7 @@ export default function CalendarScreen() {
               {formatSelectedDate(selectedDate)}
             </Text>
             <Text style={styles.taskCount}>
-              {tasks.length} {tasks.length === 1 ? 'task' : 'tasks'}
+              {tasks.length} {tasks.length === 1 ? t('calendar.task') : t('calendar.tasks')}
             </Text>
           </View>
 
@@ -184,8 +187,8 @@ export default function CalendarScreen() {
             onTaskPress={handleTaskPress}
             onToggleComplete={handleToggleComplete}
             showJob
-            emptyTitle="No Tasks"
-            emptyMessage={`No tasks scheduled for ${formatSelectedDate(selectedDate)}`}
+            emptyTitle={t('calendar.noTasks')}
+            emptyMessage={t('calendar.noTasksForDate', { date: formatSelectedDate(selectedDate) })}
           />
         </View>
       </ScrollView>

@@ -1,7 +1,10 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import { colors } from '../../constants/theme';
 
 export default function CalendarLayout() {
+  const { t } = useTranslation();
+
   return (
     <Stack
       screenOptions={{
@@ -14,15 +17,15 @@ export default function CalendarLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Task Calendar',
-          headerBackTitle: 'Back',
+          title: t('calendar.title'),
+          headerBackTitle: t('common.back'),
         }}
       />
       <Stack.Screen
         name="[taskId]"
         options={{
-          title: 'Task Details',
-          headerBackTitle: 'Calendar',
+          title: t('calendar.taskDetails'),
+          headerBackTitle: t('calendar.calendarBackTitle'),
         }}
       />
     </Stack>

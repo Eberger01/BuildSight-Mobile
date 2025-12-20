@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { borderRadius, colors, darkTheme, fontSize, fontWeight, shadows, spacing } from '@/constants/theme';
 import { Estimate, ProjectData } from '@/types';
@@ -19,6 +20,7 @@ type Props = {
 };
 
 export function EstimateResults(props: Props) {
+  const { t } = useTranslation();
   const { estimate, currency, country, isBusy, onNewEstimate, onAssignToJob, onDownloadPdf, assignedJobLabel } = props;
 
   // Support both new net/gross format and legacy format
@@ -35,18 +37,18 @@ export function EstimateResults(props: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.title}>AI-Generated Estimate</Text>
+        <Text style={styles.title}>{t('estimateResults.aiGeneratedEstimate', 'AI-Generated Estimate')}</Text>
         <View style={styles.aiBadge}>
-          <Text style={styles.aiBadgeText}>Powered by Gemini</Text>
+          <Text style={styles.aiBadgeText}>{t('estimateResults.poweredByGemini', 'Powered by Gemini')}</Text>
         </View>
       </View>
 
       {/* Main Total Card - Shows Gross (incl. tax) */}
       <View style={styles.totalCard}>
-        <Text style={styles.totalLabel}>Total Estimate (incl. tax)</Text>
+        <Text style={styles.totalLabel}>{t('estimateResults.totalEstimateInclTax', 'Total Estimate (incl. tax)')}</Text>
         <Text style={styles.totalAmount}>{formatCurrency(grossAvg, currency, country)}</Text>
         <Text style={styles.totalRange}>
-          Range: {formatCurrency(grossMin, currency, country)} - {formatCurrency(grossMax, currency, country)}
+          {t('estimateResults.range', 'Range')}: {formatCurrency(grossMin, currency, country)} - {formatCurrency(grossMax, currency, country)}
         </Text>
       </View>
 
@@ -54,11 +56,11 @@ export function EstimateResults(props: Props) {
       {hasNetGross && taxAmount > 0 ? (
         <View style={styles.taxCard}>
           <View style={styles.taxRow}>
-            <Text style={styles.taxLabel}>Net (excl. tax)</Text>
+            <Text style={styles.taxLabel}>{t('estimateResults.netExclTax', 'Net (excl. tax)')}</Text>
             <Text style={styles.taxValue}>{formatCurrency(netAvg, currency, country)}</Text>
           </View>
           <View style={styles.taxRow}>
-            <Text style={styles.taxLabel}>VAT/Tax ({fmtPct(taxRate)})</Text>
+            <Text style={styles.taxLabel}>{t('estimateResults.vatTax', 'VAT/Tax')} ({fmtPct(taxRate)})</Text>
             <Text style={styles.taxValue}>{formatCurrency(taxAmount, currency, country)}</Text>
           </View>
         </View>
@@ -66,30 +68,30 @@ export function EstimateResults(props: Props) {
 
       {estimate.breakdown ? (
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Cost Breakdown</Text>
+          <Text style={styles.sectionTitle}>{t('estimateResults.costBreakdown', 'Cost Breakdown')}</Text>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Materials</Text>
+            <Text style={styles.breakdownLabel}>{t('estimateResults.materials', 'Materials')}</Text>
             <Text style={styles.breakdownValue}>{formatCurrency(estimate.breakdown.materials?.cost || 0, currency, country)}</Text>
           </View>
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>
-              Labor ({estimate.breakdown.labor?.hours || 0}h @ {formatCurrency(estimate.breakdown.labor?.hourlyRate || 0, currency, country)}/hr)
+              {t('estimateResults.labor', 'Labor')} ({estimate.breakdown.labor?.hours || 0}h @ {formatCurrency(estimate.breakdown.labor?.hourlyRate || 0, currency, country)}/hr)
             </Text>
             <Text style={styles.breakdownValue}>{formatCurrency(estimate.breakdown.labor?.cost || 0, currency, country)}</Text>
           </View>
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Permits</Text>
+            <Text style={styles.breakdownLabel}>{t('estimateResults.permits', 'Permits')}</Text>
             <Text style={styles.breakdownValue}>{formatCurrency(estimate.breakdown.permits || 0, currency, country)}</Text>
           </View>
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>
-              Contingency {estimate.breakdown.contingencyRate ? `(${fmtPct(estimate.breakdown.contingencyRate)})` : ''}
+              {t('estimateResults.contingency', 'Contingency')} {estimate.breakdown.contingencyRate ? `(${fmtPct(estimate.breakdown.contingencyRate)})` : ''}
             </Text>
             <Text style={styles.breakdownValue}>{formatCurrency(estimate.breakdown.contingency || 0, currency, country)}</Text>
           </View>
           <View style={[styles.breakdownRow, styles.breakdownRowLast]}>
             <Text style={styles.breakdownLabel}>
-              Overhead {estimate.breakdown.overheadRate ? `(${fmtPct(estimate.breakdown.overheadRate)})` : ''}
+              {t('estimateResults.overhead', 'Overhead')} {estimate.breakdown.overheadRate ? `(${fmtPct(estimate.breakdown.overheadRate)})` : ''}
             </Text>
             <Text style={styles.breakdownValue}>{formatCurrency(estimate.breakdown.overhead || 0, currency, country)}</Text>
           </View>
@@ -98,9 +100,9 @@ export function EstimateResults(props: Props) {
 
       {estimate.timeline ? (
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Timeline</Text>
+          <Text style={styles.sectionTitle}>{t('estimate.timeline')}</Text>
           <Text style={styles.timelineText}>
-            Estimated Duration: <Text style={styles.timelineBold}>{estimate.timeline.estimatedDays} days</Text>
+            {t('estimateResults.estimatedDuration', 'Estimated Duration')}: <Text style={styles.timelineBold}>{estimate.timeline.estimatedDays} {t('estimateResults.days', 'days')}</Text>
           </Text>
           {estimate.timeline.phases?.length > 0 ? (
             <View style={styles.phasesList}>
@@ -116,7 +118,7 @@ export function EstimateResults(props: Props) {
 
       {estimate.assumptions?.length ? (
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Assumptions</Text>
+          <Text style={styles.sectionTitle}>{t('estimateResults.assumptions', 'Assumptions')}</Text>
           {estimate.assumptions.map((item, idx) => (
             <View key={idx} style={styles.recommendationItem}>
               <Text style={styles.recommendationBullet}>•</Text>
@@ -128,7 +130,7 @@ export function EstimateResults(props: Props) {
 
       {estimate.exclusions?.length ? (
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Not Included</Text>
+          <Text style={styles.sectionTitle}>{t('estimateResults.notIncluded', 'Not Included')}</Text>
           {estimate.exclusions.map((item, idx) => (
             <View key={idx} style={styles.recommendationItem}>
               <Text style={[styles.recommendationBullet, { color: colors.danger[400] }]}>✗</Text>
@@ -140,7 +142,7 @@ export function EstimateResults(props: Props) {
 
       {estimate.risks?.length ? (
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Risks</Text>
+          <Text style={styles.sectionTitle}>{t('estimateResults.risks', 'Risks')}</Text>
           {estimate.risks.slice(0, 3).map((risk, idx) => (
             <View key={idx} style={styles.riskItem}>
               <View style={styles.riskHeader}>
@@ -160,7 +162,7 @@ export function EstimateResults(props: Props) {
 
       {estimate.recommendations?.length ? (
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Recommendations</Text>
+          <Text style={styles.sectionTitle}>{t('estimateResults.recommendations', 'Recommendations')}</Text>
           {estimate.recommendations.map((rec, idx) => (
             <View key={idx} style={styles.recommendationItem}>
               <Text style={styles.recommendationBullet}>→</Text>
@@ -172,19 +174,19 @@ export function EstimateResults(props: Props) {
 
       {assignedJobLabel ? (
         <View style={styles.assignedCard}>
-          <Text style={styles.assignedText}>Assigned to: {assignedJobLabel}</Text>
+          <Text style={styles.assignedText}>{t('estimateResults.assignedTo', 'Assigned to')}: {assignedJobLabel}</Text>
         </View>
       ) : null}
 
       <View style={styles.actions}>
         <Pressable style={[styles.primaryBtn, isBusy && styles.disabled]} onPress={onNewEstimate} disabled={isBusy}>
-          <Text style={styles.primaryBtnText}>New Estimate</Text>
+          <Text style={styles.primaryBtnText}>{t('estimateResults.newEstimate', 'New Estimate')}</Text>
         </Pressable>
         <Pressable style={[styles.secondaryBtn, isBusy && styles.disabled]} onPress={onAssignToJob} disabled={isBusy}>
-          <Text style={styles.secondaryBtnText}>Assign to Job</Text>
+          <Text style={styles.secondaryBtnText}>{t('estimateResults.assignToJob', 'Assign to Job')}</Text>
         </Pressable>
         <Pressable style={[styles.ghostBtn, isBusy && styles.disabled]} onPress={onDownloadPdf} disabled={isBusy}>
-          <Text style={styles.ghostBtnText}>Download PDF</Text>
+          <Text style={styles.ghostBtnText}>{t('estimateResults.downloadPdf', 'Download PDF')}</Text>
         </Pressable>
       </View>
     </ScrollView>

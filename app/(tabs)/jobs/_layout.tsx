@@ -1,8 +1,11 @@
 import { Stack } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { darkTheme } from '@/constants/theme';
 
 export default function JobsLayout() {
+  const { t } = useTranslation();
+
   return (
     <Stack
       screenOptions={{
@@ -18,13 +21,13 @@ export default function JobsLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Active Jobs',
+          title: t('jobs.title'),
         }}
       />
       <Stack.Screen
         name="new"
         options={{
-          title: 'New Job',
+          title: t('jobs.newJob'),
         }}
       />
       <Stack.Screen

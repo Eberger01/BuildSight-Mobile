@@ -1,8 +1,14 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import { Pressable } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 
-import { darkTheme } from '@/constants/theme';
+import { darkTheme, spacing } from '@/constants/theme';
 
 export default function JobIdLayout() {
+  const router = useRouter();
+  const { t } = useTranslation();
+
   return (
     <Stack
       screenOptions={{
@@ -18,19 +24,27 @@ export default function JobIdLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Job Details',
+          title: t('jobs.details'),
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.push('/jobs')}
+              style={{ paddingRight: spacing.md }}
+            >
+              <FontAwesome name="chevron-left" size={18} color={darkTheme.colors.text} />
+            </Pressable>
+          ),
         }}
       />
       <Stack.Screen
         name="edit"
         options={{
-          title: 'Edit Job',
+          title: t('jobs.editJob'),
         }}
       />
       <Stack.Screen
         name="photos"
         options={{
-          title: 'Job Photos',
+          title: t('jobs.jobPhotos'),
         }}
       />
     </Stack>

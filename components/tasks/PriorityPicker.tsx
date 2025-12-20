@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, borderRadius, fontSize, spacing } from '../../constants/theme';
 import type { TaskPriority } from '../../data/repos/tasksRepo';
 
@@ -9,13 +10,21 @@ interface PriorityPickerProps {
   disabled?: boolean;
 }
 
-const priorities: { value: TaskPriority; label: string; color: string }[] = [
-  { value: 'high', label: 'High', color: colors.danger[500] },
-  { value: 'medium', label: 'Medium', color: colors.warning[500] },
-  { value: 'low', label: 'Low', color: colors.success[500] },
-];
+const priorityColors: Record<TaskPriority, string> = {
+  high: colors.danger[500],
+  medium: colors.warning[500],
+  low: colors.success[500],
+};
 
 export function PriorityPicker({ value, onChange, disabled }: PriorityPickerProps) {
+  const { t } = useTranslation();
+
+  const priorities: { value: TaskPriority; label: string; color: string }[] = [
+    { value: 'high', label: t('calendar.priorities.high'), color: priorityColors.high },
+    { value: 'medium', label: t('calendar.priorities.medium'), color: priorityColors.medium },
+    { value: 'low', label: t('calendar.priorities.low'), color: priorityColors.low },
+  ];
+
   return (
     <View style={styles.container}>
       {priorities.map((p) => {

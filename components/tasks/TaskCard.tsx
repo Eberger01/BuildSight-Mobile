@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors, borderRadius, fontSize, spacing, shadows } from '../../constants/theme';
 import { getPriorityColor } from './PriorityPicker';
 import type { TaskWithJob, TaskPriority } from '../../data/repos/tasksRepo';
@@ -20,13 +21,15 @@ export function TaskCard({
   showJob = true,
   compact = false,
 }: TaskCardProps) {
+  const { t, i18n } = useTranslation();
   const priorityColor = getPriorityColor(task.priority);
   const isCompleted = task.completed === 1;
+  const locale = i18n.language || 'en';
 
   const formatDate = (dateStr: string | null): string => {
-    if (!dateStr) return 'No due date';
+    if (!dateStr) return t('tasks.noDueDate', 'No due date');
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(locale, {
       month: 'short',
       day: 'numeric',
       year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
@@ -39,7 +42,7 @@ export function TaskCard({
     const hours = date.getHours();
     const minutes = date.getMinutes();
     if (hours === 0 && minutes === 0) return '';
-    return date.toLocaleTimeString('en-US', {
+    return date.toLocaleTimeString(locale, {
       hour: 'numeric',
       minute: '2-digit',
     });

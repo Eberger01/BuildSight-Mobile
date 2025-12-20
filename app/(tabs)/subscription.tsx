@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { PurchasesPackage } from 'react-native-purchases';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { borderRadius, colors, darkTheme, fontSize, spacing } from '@/constants/theme';
 import { useCredits } from '@/contexts/CreditsContext';
@@ -34,6 +35,7 @@ import { DEFAULT_PRICING, PricingPackage } from '@/types/credits';
 
 export default function SubscriptionScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const {
     credits,
     planType,
@@ -107,16 +109,16 @@ export default function SubscriptionScreen() {
 
       const creditsAdded = getCreditsForProduct(pkg.product.identifier);
       Alert.alert(
-        'Purchase Successful!',
-        `${creditsAdded} credit${creditsAdded > 1 ? 's' : ''} have been added to your account.`,
-        [{ text: 'OK' }]
+        t('subscription.purchaseSuccess', 'Purchase Successful!'),
+        t('subscription.creditsAdded', { count: creditsAdded }),
+        [{ text: t('common.ok') }]
       );
     } catch (error: any) {
       if (error.message === 'PURCHASE_CANCELLED') {
         // User cancelled - no alert needed
         return;
       }
-      Alert.alert('Purchase Failed', error.message || 'Something went wrong. Please try again.');
+      Alert.alert(t('subscription.purchaseFailed', 'Purchase Failed'), error.message || t('errors.genericError'));
     } finally {
       setIsPurchasing(false);
     }
@@ -138,9 +140,9 @@ export default function SubscriptionScreen() {
       await restorePurchasesBackend();
       await refreshCredits();
 
-      Alert.alert('Restore Complete', 'Your purchases have been restored.', [{ text: 'OK' }]);
+      Alert.alert(t('subscription.restoreComplete', 'Restore Complete'), t('subscription.purchasesRestored', 'Your purchases have been restored.'), [{ text: t('common.ok') }]);
     } catch (error: any) {
-      Alert.alert('Restore Failed', error.message || 'Failed to restore purchases.');
+      Alert.alert(t('subscription.restoreFailed', 'Restore Failed'), error.message || t('subscription.failedRestore', 'Failed to restore purchases.'));
     } finally {
       setIsRestoring(false);
     }
@@ -152,13 +154,13 @@ export default function SubscriptionScreen() {
   const getPlanDisplayName = () => {
     switch (planType) {
       case 'pro_monthly':
-        return 'Pro Monthly';
+        return t('settings.plans.proMonthly');
       case 'pack10':
-        return 'Credit Pack';
+        return t('settings.plans.creditPack');
       case 'single':
-        return 'Pay-as-you-go';
+        return t('settings.plans.payAsYouGo');
       default:
-        return 'Free';
+        return t('settings.plans.freePlan');
     }
   };
 
@@ -180,14 +182,14 @@ export default function SubscriptionScreen() {
       >
         {isMostPopular && (
           <View style={styles.popularBadge}>
-            <Text style={styles.popularBadgeText}>Most Popular</Text>
+            <Text style={styles.popularBadgeText}>{t('subscription.mostPopular', 'Most Popular')}</Text>
           </View>
         )}
 
         <Text style={styles.cardTitle}>{pkg.product.title || productId}</Text>
         <Text style={styles.cardCredits}>
-          {creditsAmount} Credit{creditsAmount > 1 ? 's' : ''}
-          {isSubscription ? '/month' : ''}
+          {creditsAmount} {creditsAmount > 1 ? t('subscription.credits') : t('subscription.credit', 'Credit')}
+          {isSubscription ? t('subscription.perMonth') : ''}
         </Text>
         <Text style={styles.cardPrice}>{pkg.product.priceString}</Text>
         {pkg.product.description && (
@@ -196,7 +198,7 @@ export default function SubscriptionScreen() {
 
         <View style={[styles.buyButton, isMostPopular && styles.popularBuyButton]}>
           <Text style={styles.buyButtonText}>
-            {isSubscription ? 'Subscribe' : 'Buy Now'}
+            {isSubscription ? t('subscription.subscribe', 'Subscribe') : t('subscription.buyNow', 'Buy Now')}
           </Text>
         </View>
       </TouchableOpacity>
@@ -211,14 +213,14 @@ export default function SubscriptionScreen() {
       <View key={pricing.id} style={[styles.pricingCard, pricing.isMostPopular && styles.popularCard]}>
         {pricing.isMostPopular && (
           <View style={styles.popularBadge}>
-            <Text style={styles.popularBadgeText}>Most Popular</Text>
+            <Text style={styles.popularBadgeText}>{t('subscription.mostPopular', 'Most Popular')}</Text>
           </View>
         )}
 
         <Text style={styles.cardTitle}>{pricing.name}</Text>
         <Text style={styles.cardCredits}>
-          {pricing.credits} Credit{pricing.credits > 1 ? 's' : ''}
-          {pricing.isSubscription ? '/month' : ''}
+          {pricing.credits} {pricing.credits > 1 ? t('subscription.credits') : t('subscription.credit', 'Credit')}
+          {pricing.isSubscription ? t('subscription.perMonth') : ''}
         </Text>
         <Text style={styles.cardPrice}>
           {pricing.currency} {pricing.price}
@@ -228,8 +230,8 @@ export default function SubscriptionScreen() {
         <View style={styles.unavailableButton}>
           <Text style={styles.unavailableButtonText}>
             {Platform.OS === 'web'
-              ? 'Use Mobile App'
-              : 'Coming Soon'}
+              ? t('subscription.useMobileApp', 'Use Mobile App')
+              : t('common.comingSoon')}
           </Text>
         </View>
       </View>
@@ -247,17 +249,17 @@ export default function SubscriptionScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Credits & Subscription</Text>
-          <Text style={styles.subtitle}>Purchase credits to generate AI estimates</Text>
+          <Text style={styles.title}>{t('subscription.title')}</Text>
+          <Text style={styles.subtitle}>{t('subscription.subtitle')}</Text>
         </View>
 
         {/* Current Balance Card */}
         <View style={styles.balanceCard}>
           <View style={styles.balanceRow}>
             <View>
-              <Text style={styles.balanceLabel}>Current Balance</Text>
+              <Text style={styles.balanceLabel}>{t('subscription.currentBalance')}</Text>
               <Text style={styles.balanceValue}>
-                {creditsLoading ? '...' : credits} Credits
+                {creditsLoading ? '...' : credits} {t('subscription.credits')}
               </Text>
             </View>
             <View style={styles.planBadge}>
@@ -267,7 +269,7 @@ export default function SubscriptionScreen() {
 
           <View style={styles.usageRow}>
             <Text style={styles.usageText}>
-              Today: {dailyUsage} / {dailyLimit} estimates
+              {t('subscription.todayUsage', { used: dailyUsage, limit: dailyLimit })}
             </Text>
             <View style={styles.usageBar}>
               <View
@@ -284,15 +286,14 @@ export default function SubscriptionScreen() {
         {Platform.OS === 'web' && (
           <View style={styles.webNotice}>
             <Text style={styles.webNoticeText}>
-              In-app purchases are only available in the mobile app.
-              Please download BuildSight on iOS or Android to purchase credits.
+              {t('subscription.webNotice')}
             </Text>
           </View>
         )}
 
         {/* Pricing Cards */}
         <View style={styles.pricingSection}>
-          <Text style={styles.sectionTitle}>Purchase Credits</Text>
+          <Text style={styles.sectionTitle}>{t('subscription.purchaseCredits')}</Text>
 
           {isLoadingPackages ? (
             <ActivityIndicator size="large" color={colors.primary[500]} style={styles.loader} />
@@ -316,24 +317,24 @@ export default function SubscriptionScreen() {
           {isRestoring ? (
             <ActivityIndicator size="small" color={colors.primary[500]} />
           ) : (
-            <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+            <Text style={styles.restoreButtonText}>{t('subscription.restorePurchases')}</Text>
           )}
         </TouchableOpacity>
 
         {/* Info Section */}
         <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>How Credits Work</Text>
+          <Text style={styles.infoTitle}>{t('subscription.howCreditsWork')}</Text>
           <View style={styles.infoItem}>
             <Text style={styles.infoBullet}>1</Text>
-            <Text style={styles.infoText}>Each AI estimate uses 1 credit</Text>
+            <Text style={styles.infoText}>{t('subscription.creditInfo1')}</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoBullet}>2</Text>
-            <Text style={styles.infoText}>Credits never expire</Text>
+            <Text style={styles.infoText}>{t('subscription.creditInfo2')}</Text>
           </View>
           <View style={styles.infoItem}>
             <Text style={styles.infoBullet}>3</Text>
-            <Text style={styles.infoText}>Pro subscribers get 50 credits monthly</Text>
+            <Text style={styles.infoText}>{t('subscription.creditInfo3')}</Text>
           </View>
         </View>
 
@@ -341,7 +342,7 @@ export default function SubscriptionScreen() {
         {isPurchasing && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={colors.primary[500]} />
-            <Text style={styles.loadingText}>Processing purchase...</Text>
+            <Text style={styles.loadingText}>{t('subscription.processingPurchase')}</Text>
           </View>
         )}
       </ScrollView>

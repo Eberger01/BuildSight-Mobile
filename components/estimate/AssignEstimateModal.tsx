@@ -1,5 +1,6 @@
 import React from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
 import { JobRow } from '@/data/repos/jobsRepo';
@@ -13,21 +14,22 @@ type Props = {
 };
 
 export function AssignEstimateModal(props: Props) {
+  const { t } = useTranslation();
   const { visible, jobs, onClose, onAssignToJobId, onCreateJob } = props;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <View style={styles.content}>
-          <Text style={styles.title}>Assign estimate to…</Text>
+          <Text style={styles.title}>{t('assignModal.assignEstimateTo', 'Assign estimate to…')}</Text>
 
           <Pressable style={styles.option} onPress={() => onAssignToJobId(null)}>
-            <Text style={styles.optionText}>Unassigned</Text>
+            <Text style={styles.optionText}>{t('gallery.unassigned')}</Text>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
 
           <Pressable style={[styles.option, styles.optionPrimary]} onPress={onCreateJob}>
-            <Text style={[styles.optionText, styles.optionTextPrimary]}>＋ Create new job</Text>
+            <Text style={[styles.optionText, styles.optionTextPrimary]}>＋ {t('assignModal.createNewJob', 'Create new job')}</Text>
             <Text style={[styles.chevron, styles.optionTextPrimary]}>›</Text>
           </Pressable>
 
@@ -46,13 +48,13 @@ export function AssignEstimateModal(props: Props) {
 
             {jobs.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyText}>No jobs yet. Create one to attach this estimate.</Text>
+                <Text style={styles.emptyText}>{t('assignModal.noJobsYet', 'No jobs yet. Create one to attach this estimate.')}</Text>
               </View>
             ) : null}
           </ScrollView>
 
           <Pressable style={styles.cancel} onPress={onClose}>
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Text style={styles.cancelText}>{t('common.cancel')}</Text>
           </Pressable>
         </View>
       </TouchableOpacity>

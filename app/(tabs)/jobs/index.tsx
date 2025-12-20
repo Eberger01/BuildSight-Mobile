@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
+import { useTranslation } from 'react-i18next';
 
 const STATUS_FILTERS = ['All', 'Planning', 'In Progress', 'Review', 'Completed'] as const;
 const SORT_OPTIONS = [
@@ -16,11 +17,34 @@ const SORT_OPTIONS = [
 
 export default function JobsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('recent');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Translated status filters
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'All': return t('jobs.filterAll', 'All');
+      case 'Planning': return t('status.planning');
+      case 'In Progress': return t('status.inProgress');
+      case 'Review': return t('status.review');
+      case 'Completed': return t('status.completed');
+      default: return status;
+    }
+  };
+
+  // Translated sort options
+  const getSortLabel = (value: string) => {
+    switch (value) {
+      case 'recent': return t('jobs.sortRecent', 'Recent');
+      case 'progress': return t('jobs.sortProgress', 'Progress');
+      case 'budget': return t('jobs.sortBudget', 'Budget');
+      default: return value;
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -99,19 +123,19 @@ export default function JobsScreen() {
 
   const handleDelete = (job: JobRow) => {
     Alert.alert(
-      'Delete Job',
-      `Are you sure you want to delete "${job.clientName}"? This will also delete all associated photos and estimates.`,
+      t('jobs.deleteJob'),
+      t('jobs.deleteConfirm', { name: job.clientName }),
       [
-        { text: 'Cancel', style: 'cancel', onPress: () => swipeableRefs.current.get(job.id)?.close() },
+        { text: t('common.cancel'), style: 'cancel', onPress: () => swipeableRefs.current.get(job.id)?.close() },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteJobAsync(job.id);
               await refreshJobs();
             } catch (e) {
-              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete job.');
+              Alert.alert(t('common.error'), e instanceof Error ? e.message : t('errors.deleteFailed'));
             }
           },
         },
@@ -132,7 +156,7 @@ export default function JobsScreen() {
           onPress={() => handleDelete(job)}
         >
           <Text style={styles.deleteActionIcon}>🗑️</Text>
-          <Text style={styles.deleteActionText}>Delete</Text>
+          <Text style={styles.deleteActionText}>{t('common.delete')}</Text>
         </TouchableOpacity>
       </Animated.View>
     );
@@ -148,11 +172,11 @@ export default function JobsScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerTitle}>Active Jobs</Text>
-            <Text style={styles.headerSubtitle}>{filteredJobs.length} projects</Text>
+            <Text style={styles.headerTitle}>{t('jobs.title')}</Text>
+            <Text style={styles.headerSubtitle}>{filteredJobs.length} {t('jobs.projects', 'projects')}</Text>
           </View>
           <Pressable style={styles.newJobBtn} onPress={() => router.push('/jobs/new')}>
-            <Text style={styles.newJobBtnText}>＋ New</Text>
+            <Text style={styles.newJobBtnText}>＋ {t('jobs.new', 'New')}</Text>
           </Pressable>
         </View>
 
@@ -176,7 +200,7 @@ export default function JobsScreen() {
                   styles.filterPillText,
                   statusFilter === filter && styles.filterPillTextActive
                 ]}>
-                  {filter}
+                  {getStatusLabel(filter)}
                 </Text>
               </Pressable>
             ))}
@@ -188,7 +212,7 @@ export default function JobsScreen() {
               style={styles.sortButton}
               onPress={() => setShowSortMenu(!showSortMenu)}
             >
-              <Text style={styles.sortButtonText}>Sort: {SORT_OPTIONS.find(o => o.value === sortBy)?.label}</Text>
+              <Text style={styles.sortButtonText}>{t('jobs.sort', 'Sort')}: {getSortLabel(sortBy)}</Text>
               <Text style={styles.sortIcon}>{showSortMenu ? '▲' : '▼'}</Text>
             </Pressable>
 
@@ -210,7 +234,7 @@ export default function JobsScreen() {
                       styles.sortMenuItemText,
                       sortBy === option.value && styles.sortMenuItemTextActive
                     ]}>
-                      {option.label}
+                      {getSortLabel(option.value)}
                     </Text>
                   </Pressable>
                 ))}
@@ -243,7 +267,7 @@ export default function JobsScreen() {
 
                 <View style={styles.progressSection}>
                   <View style={styles.progressHeader}>
-                    <Text style={styles.progressLabel}>Progress</Text>
+                    <Text style={styles.progressLabel}>{t('jobs.progress')}</Text>
                     <Text style={styles.progressValue}>{job.progress}%</Text>
                   </View>
                   <View style={styles.progressBar}>
@@ -253,11 +277,11 @@ export default function JobsScreen() {
 
                 <View style={styles.jobDetails}>
                   <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Budget</Text>
+                    <Text style={styles.detailLabel}>{t('jobs.budget')}</Text>
                     <Text style={styles.detailValue}>{formatCurrency(job.budgetCents / 100)}</Text>
                   </View>
                   <View style={styles.detailItem}>
-                    <Text style={styles.detailLabel}>Started</Text>
+                    <Text style={styles.detailLabel}>{t('jobs.started', 'Started')}</Text>
                     <Text style={styles.detailValue}>{job.startDate}</Text>
                   </View>
                 </View>
@@ -269,21 +293,21 @@ export default function JobsScreen() {
                     onPress={() => handlePhotos(job.id)}
                   >
                     <Text style={styles.actionBtnIcon}>📷</Text>
-                    <Text style={styles.actionBtnText}>Photos</Text>
+                    <Text style={styles.actionBtnText}>{t('jobs.photos')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.actionBtn}
                     onPress={() => handleDetails(job.id)}
                   >
                     <Text style={styles.actionBtnIcon}>📋</Text>
-                    <Text style={styles.actionBtnText}>Details</Text>
+                    <Text style={styles.actionBtnText}>{t('jobs.details')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionBtn, styles.primaryActionBtn]}
                     onPress={() => handleUpdate(job.id)}
                   >
                     <Text style={styles.actionBtnIcon}>✏️</Text>
-                    <Text style={[styles.actionBtnText, styles.primaryActionBtnText]}>Update</Text>
+                    <Text style={[styles.actionBtnText, styles.primaryActionBtnText]}>{t('common.update')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -294,8 +318,8 @@ export default function JobsScreen() {
         {filteredJobs.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateIcon}>📂</Text>
-            <Text style={styles.emptyStateText}>{isLoading ? 'Loading jobs…' : 'No jobs found'}</Text>
-            <Text style={styles.emptyStateSubtext}>{isLoading ? 'Fetching local data' : 'Create a job to get started'}</Text>
+            <Text style={styles.emptyStateText}>{isLoading ? t('common.loading') : t('jobs.noJobs')}</Text>
+            <Text style={styles.emptyStateSubtext}>{isLoading ? t('dashboard.fetchingData') : t('jobs.noJobsDesc')}</Text>
           </View>
         )}
       </ScrollView>

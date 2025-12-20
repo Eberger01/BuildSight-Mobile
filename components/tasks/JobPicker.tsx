@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors, borderRadius, fontSize, spacing, shadows } from '../../constants/theme';
 import { listJobsAsync, JobRow } from '../../data/repos/jobsRepo';
 
@@ -19,6 +20,7 @@ interface JobPickerProps {
 }
 
 export function JobPicker({ value, onChange, disabled }: JobPickerProps) {
+  const { t } = useTranslation();
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedJob, setSelectedJob] = useState<JobRow | null>(null);
@@ -72,7 +74,7 @@ export function JobPicker({ value, onChange, disabled }: JobPickerProps) {
           ) : (
             <>
               <FontAwesome name="link" size={16} color={colors.neutral[500]} />
-              <Text style={styles.placeholder}>Link to Job (optional)</Text>
+              <Text style={styles.placeholder}>{t('calendar.linkToJob')}</Text>
             </>
           )}
         </View>
@@ -96,7 +98,7 @@ export function JobPicker({ value, onChange, disabled }: JobPickerProps) {
         >
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Job</Text>
+              <Text style={styles.modalTitle}>{t('calendar.selectJob')}</Text>
               <Pressable onPress={() => setModalVisible(false)}>
                 <FontAwesome name="times" size={20} color={colors.neutral[400]} />
               </Pressable>
@@ -115,8 +117,8 @@ export function JobPicker({ value, onChange, disabled }: JobPickerProps) {
                   <FontAwesome name="times-circle" size={20} color={colors.neutral[500]} />
                 </View>
                 <View style={styles.jobItemContent}>
-                  <Text style={styles.jobItemName}>No Job Linked</Text>
-                  <Text style={styles.jobItemDetail}>Task will be standalone</Text>
+                  <Text style={styles.jobItemName}>{t('calendar.noJobLinked')}</Text>
+                  <Text style={styles.jobItemDetail}>{t('calendar.taskWillBeStandalone')}</Text>
                 </View>
                 {value === null && (
                   <FontAwesome name="check" size={16} color={colors.primary[500]} />
@@ -154,8 +156,8 @@ export function JobPicker({ value, onChange, disabled }: JobPickerProps) {
 
               {jobs.length === 0 && (
                 <View style={styles.emptyState}>
-                  <Text style={styles.emptyText}>No jobs available</Text>
-                  <Text style={styles.emptySubtext}>Create a job first to link tasks</Text>
+                  <Text style={styles.emptyText}>{t('calendar.noJobsAvailable')}</Text>
+                  <Text style={styles.emptySubtext}>{t('calendar.createJobFirst')}</Text>
                 </View>
               )}
             </ScrollView>

@@ -2,6 +2,7 @@ import React from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 
 import { darkTheme } from '@/constants/theme';
 
@@ -14,6 +15,7 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   // Add extra padding for Android gesture navigation bar
   const bottomPadding = Math.max(insets.bottom, 8);
@@ -46,7 +48,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: t('tabs.dashboard'),
           tabBarIcon: ({ color }) => <TabBarIcon name="dashboard" color={color} />,
           headerTitle: 'BuildSight',
         }}
@@ -54,15 +56,15 @@ export default function TabLayout() {
       <Tabs.Screen
         name="estimate"
         options={{
-          title: 'Estimate',
+          title: t('tabs.estimate'),
           tabBarIcon: ({ color }) => <TabBarIcon name="calculator" color={color} />,
-          headerTitle: 'New Estimate',
+          headerTitle: t('estimate.title'),
         }}
       />
       <Tabs.Screen
         name="jobs"
         options={{
-          title: 'Jobs',
+          title: t('tabs.jobs'),
           tabBarIcon: ({ color }) => <TabBarIcon name="briefcase" color={color} />,
           headerShown: false,
         }}
@@ -70,7 +72,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="gallery"
         options={{
-          title: 'Gallery',
+          title: t('tabs.gallery'),
           tabBarIcon: ({ color }) => <TabBarIcon name="image" color={color} />,
           headerShown: false,
         }}
@@ -78,17 +80,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
+          title: t('tabs.settings'),
           tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
-          headerTitle: 'Settings',
+          headerTitle: t('settings.title'),
         }}
       />
       <Tabs.Screen
         name="subscription"
         options={{
-          title: 'Credits',
+          title: t('tabs.credits'),
           tabBarIcon: ({ color }) => <TabBarIcon name="diamond" color={color} />,
-          headerTitle: 'Purchase Credits',
+          headerTitle: t('subscription.purchaseCredits'),
         }}
       />
     </Tabs>

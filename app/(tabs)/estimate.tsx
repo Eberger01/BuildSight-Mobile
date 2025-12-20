@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { AssignEstimateModal } from '@/components/estimate/AssignEstimateModal';
 import { EstimateForm } from '@/components/estimate/EstimateForm';
@@ -23,6 +24,7 @@ import { printHtmlToPdfAndShareAsync } from '@/utils/exportDownload';
 
 export default function EstimateScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { refreshCredits, isBackendConfigured } = useCredits();
   const { canGenerate, reason: cannotGenerateReason } = useCanGenerateEstimate();
   const [formData, setFormData] = useState<ProjectData>({
@@ -87,7 +89,7 @@ export default function EstimateScreen() {
   const pickImages = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera roll permissions to upload photos.');
+      Alert.alert(t('errors.permissionNeeded', 'Permission needed'), t('errors.cameraRollPermission', 'Please grant camera roll permissions to upload photos.'));
       return;
     }
 
@@ -115,7 +117,7 @@ export default function EstimateScreen() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant camera permissions to take photos.');
+      Alert.alert(t('errors.permissionNeeded', 'Permission needed'), t('errors.cameraPermission', 'Please grant camera permissions to take photos.'));
       return;
     }
 
@@ -142,7 +144,7 @@ export default function EstimateScreen() {
   const handleSubmit = async () => {
     // Validation
     if (!formData.clientName || !formData.email || !formData.phone || !formData.projectType || !formData.description) {
-      setError('Please fill in all required fields.');
+      setError(t('estimate.validation.fillRequired', 'Please fill in all required fields.'));
       return;
     }
 
@@ -150,15 +152,15 @@ export default function EstimateScreen() {
     if (isBackendConfigured && !canGenerate) {
       if (cannotGenerateReason === 'No credits available') {
         Alert.alert(
-          'No Credits',
-          'You need credits to generate an AI estimate. Would you like to purchase credits?',
+          t('subscription.noCredits', 'No Credits'),
+          t('subscription.needCreditsForEstimate', 'You need credits to generate an AI estimate. Would you like to purchase credits?'),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Buy Credits', onPress: () => router.push('/subscription') },
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('subscription.buyCredits'), onPress: () => router.push('/subscription') },
           ]
         );
       } else {
-        Alert.alert('Cannot Generate Estimate', cannotGenerateReason || 'Please try again later.');
+        Alert.alert(t('estimate.cannotGenerate', 'Cannot Generate Estimate'), cannotGenerateReason || t('errors.tryAgainLater', 'Please try again later.'));
       }
       return;
     }
@@ -203,14 +205,14 @@ export default function EstimateScreen() {
       console.error('Error generating estimate:', err);
 
       // Handle specific credit-related errors
-      const errorMessage = err instanceof Error ? err.message : 'Failed to generate estimate. Please try again.';
+      const errorMessage = err instanceof Error ? err.message : t('estimate.failedToGenerate', 'Failed to generate estimate. Please try again.');
       if (errorMessage.includes('credits') || errorMessage.includes('INSUFFICIENT_CREDITS')) {
         Alert.alert(
-          'No Credits',
-          'You need credits to generate an AI estimate.',
+          t('subscription.noCredits', 'No Credits'),
+          t('subscription.needCredits', 'You need credits to generate an AI estimate.'),
           [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Buy Credits', onPress: () => router.push('/subscription') },
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('subscription.buyCredits'), onPress: () => router.push('/subscription') },
           ]
         );
       } else {
@@ -240,7 +242,10 @@ export default function EstimateScreen() {
   };
 
   const onAssignToJobId = async (jobId: number | null) => {
-    if (!estimateId) return;
+    if (!estimateId) {
+      Alert.alert(t('common.error'), t('estimate.notSaved', 'Estimate not saved. Please try generating the estimate again.'));
+      return;
+    }
     await updateEstimateJobIdAsync(estimateId, jobId);
     if (jobId) {
       const j = jobs.find((x) => x.id === jobId);
@@ -257,19 +262,19 @@ export default function EstimateScreen() {
       setIsBusy(true);
       const budgetCents = Math.max(0, Math.round((estimate.totalEstimate?.average || 0) * 100));
       const newJobId = await createJobAsync({
-        clientName: formData.clientName || 'Client',
-        projectType: formData.projectType || 'Project',
+        clientName: formData.clientName || t('jobs.clientName'),
+        projectType: formData.projectType || t('jobs.projectType'),
         status: 'Planning',
         progress: 0,
         budgetCents,
         startDate: new Date().toISOString().slice(0, 10),
-        notes: 'Created from estimate',
+        notes: t('jobs.createdFromEstimate', 'Created from estimate'),
       });
       await refreshJobs();
       await onAssignToJobId(newJobId);
       router.push((`/jobs/${newJobId}` as unknown) as any);
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to create job.');
+      Alert.alert(t('common.error'), e instanceof Error ? e.message : t('errors.saveFailed'));
     } finally {
       setIsBusy(false);
     }
@@ -279,19 +284,19 @@ export default function EstimateScreen() {
     if (!estimate || !estimateId) return;
     try {
       setIsBusy(true);
-      const html = buildEstimatePdfHtml({ 
-        project: formData, 
-        estimate, 
+      const html = buildEstimatePdfHtml({
+        project: formData,
+        estimate,
         currency,
         country: settings.country,
       });
       const baseName = `${formData.clientName || 'client'}_estimate`;
-      const result = await printHtmlToPdfAndShareAsync({ html, baseName, dialogTitle: 'Share estimate PDF' });
+      const result = await printHtmlToPdfAndShareAsync({ html, baseName, dialogTitle: t('estimate.sharePdf') });
       if (result?.savedPath) {
         await updateEstimatePdfPathAsync(estimateId, result.savedPath);
       }
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to generate PDF.');
+      Alert.alert(t('common.error'), e instanceof Error ? e.message : t('estimate.failedPdf', 'Failed to generate PDF.'));
     } finally {
       setIsBusy(false);
     }
@@ -304,13 +309,13 @@ export default function EstimateScreen() {
 
       // Create a job in Planning status
       const newJobId = await createJobAsync({
-        clientName: formData.clientName || 'Draft Client',
-        projectType: formData.projectType || 'Draft Project',
+        clientName: formData.clientName || t('estimate.draftClient', 'Draft Client'),
+        projectType: formData.projectType || t('estimate.draftProject', 'Draft Project'),
         status: 'Planning',
         progress: 0,
         budgetCents: 0,
         startDate: new Date().toISOString().slice(0, 10),
-        notes: 'Created from draft estimate',
+        notes: t('jobs.createdFrom'),
       });
 
       // Save as draft estimate linked to the new job
@@ -329,25 +334,25 @@ export default function EstimateScreen() {
       await refreshJobs();
 
       Alert.alert(
-        'Draft Saved',
-        'Your estimate draft has been saved as a new job in Planning status.',
+        t('estimate.draftSaved', 'Draft Saved'),
+        t('estimate.draftSavedMessage', 'Your estimate draft has been saved as a new job in Planning status.'),
         [
           {
-            text: 'View Job',
+            text: t('estimate.viewJob', 'View Job'),
             onPress: () => {
               resetForm();
               router.push(`/jobs/${newJobId}` as any);
             },
           },
           {
-            text: 'Start New Estimate',
+            text: t('estimate.startNew', 'Start New Estimate'),
             onPress: () => resetForm(),
           },
         ]
       );
     } catch (err) {
       console.error('Error saving draft:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save draft.');
+      setError(err instanceof Error ? err.message : t('estimate.failedDraft', 'Failed to save draft.'));
     } finally {
       setIsLoading(false);
     }

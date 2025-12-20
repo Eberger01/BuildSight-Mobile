@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
 import { listEstimatesByJobIdAsync } from '@/data/repos/estimatesRepo';
@@ -11,6 +12,7 @@ import { formatCurrency } from '@/utils/formatters';
 
 export default function JobDetailsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{ jobId?: string }>();
   const jobId = Number(params.jobId || 0);
 
@@ -21,12 +23,12 @@ export default function JobDetailsScreen() {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Job',
-      `Are you sure you want to delete "${job?.clientName || 'this job'}"? This will also delete all associated photos and estimates.`,
+      t('jobs.deleteJob'),
+      t('jobs.deleteConfirm', { name: job?.clientName || 'this job' }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -34,7 +36,7 @@ export default function JobDetailsScreen() {
               await deleteJobAsync(jobId);
               router.replace('/jobs');
             } catch (e) {
-              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to delete job.');
+              Alert.alert(t('common.error'), e instanceof Error ? e.message : t('errors.deleteFailed'));
               setIsDeleting(false);
             }
           },
@@ -61,10 +63,20 @@ export default function JobDetailsScreen() {
     }, [load])
   );
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'Planning': return t('status.planning');
+      case 'In Progress': return t('status.inProgress');
+      case 'Review': return t('status.review');
+      case 'Completed': return t('status.completed');
+      default: return status;
+    }
+  };
+
   if (!jobId) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.muted}>Invalid job id.</Text>
+        <Text style={styles.muted}>{t('jobs.invalidJobId')}</Text>
       </View>
     );
   }
@@ -72,7 +84,7 @@ export default function JobDetailsScreen() {
   if (!job) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.muted}>Loading job…</Text>
+        <Text style={styles.muted}>{t('jobs.loadingJob')}</Text>
       </View>
     );
   }
@@ -95,49 +107,49 @@ export default function JobDetailsScreen() {
         </View>
         <View style={styles.badgeRow}>
           <View style={[styles.badge, styles.badgeMuted]}>
-            <Text style={styles.badgeText}>{job.status}</Text>
+            <Text style={styles.badgeText}>{getStatusLabel(job.status)}</Text>
           </View>
           <View style={[styles.badge, styles.badgeMuted]}>
-            <Text style={styles.badgeText}>{job.progress}% progress</Text>
+            <Text style={styles.badgeText}>{job.progress}% {t('jobs.progress').toLowerCase()}</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.grid}>
         <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Budget</Text>
+          <Text style={styles.statLabel}>{t('jobs.budget')}</Text>
           <Text style={styles.statValue}>{formatCurrency(job.budgetCents / 100)}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Start</Text>
+          <Text style={styles.statLabel}>{t('jobs.start')}</Text>
           <Text style={styles.statValue}>{job.startDate}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Photos</Text>
+          <Text style={styles.statLabel}>{t('jobs.photos')}</Text>
           <Text style={styles.statValue}>{photoCount}</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Estimates</Text>
+          <Text style={styles.statLabel}>{t('jobs.estimates')}</Text>
           <Text style={styles.statValue}>{estimateCount}</Text>
         </View>
       </View>
 
       {job.notes ? (
         <View style={styles.notesCard}>
-          <Text style={styles.sectionTitle}>Notes</Text>
+          <Text style={styles.sectionTitle}>{t('jobs.notes')}</Text>
           <Text style={styles.notesText}>{job.notes}</Text>
         </View>
       ) : null}
 
       <View style={styles.actions}>
         <Pressable style={styles.actionBtn} onPress={() => router.push(`/jobs/${jobId}/photos`)}>
-          <Text style={styles.actionBtnText}>📷 Photos</Text>
+          <Text style={styles.actionBtnText}>📷 {t('jobs.photos')}</Text>
         </Pressable>
         <Pressable style={styles.actionBtn} onPress={() => router.push(`/jobs/${jobId}/edit`)}>
-          <Text style={styles.actionBtnText}>✏️ Update</Text>
+          <Text style={styles.actionBtnText}>✏️ {t('jobs.updateJob')}</Text>
         </Pressable>
         <Pressable style={[styles.actionBtn, styles.primaryBtn]} onPress={() => router.push('/estimate')}>
-          <Text style={[styles.actionBtnText, styles.primaryBtnText]}>🧮 New Estimate</Text>
+          <Text style={[styles.actionBtnText, styles.primaryBtnText]}>🧮 {t('jobs.newEstimate')}</Text>
         </Pressable>
       </View>
     </ScrollView>

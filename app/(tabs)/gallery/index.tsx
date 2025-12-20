@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
 import { importPhotoToAppStorageAsync } from '@/data/files';
@@ -16,6 +17,7 @@ const categories = ['All', 'Kitchen', 'Bathroom', 'Fence', 'Deck', 'Painting', '
 
 export default function GalleryScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<(typeof categories)[number]>('All');
   const [projects, setProjects] = useState<GalleryProjectRow[]>([]);
   const [jobs, setJobs] = useState<JobRow[]>([]);
@@ -73,7 +75,7 @@ export default function GalleryScreen() {
       if (action === 'library') {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission Required', 'Please grant access to your photo library to add images.');
+          Alert.alert(t('errors.permissionNeeded'), t('errors.cameraRollPermission'));
           return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -91,7 +93,7 @@ export default function GalleryScreen() {
       } else {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permission Required', 'Please grant camera access to take photos.');
+          Alert.alert(t('errors.permissionNeeded'), t('errors.cameraPermission'));
           return;
         }
         const result = await ImagePicker.launchCameraAsync({
@@ -108,7 +110,7 @@ export default function GalleryScreen() {
 
       await refresh();
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to add photos.');
+      Alert.alert(t('common.error'), e instanceof Error ? e.message : t('gallery.failedAddPhotos', 'Failed to add photos.'));
     } finally {
       setIsBusy(false);
     }
@@ -123,9 +125,9 @@ export default function GalleryScreen() {
       {/* Header Section */}
       <View style={styles.headerSection}>
         <View style={styles.headerInfo}>
-          <Text style={styles.headerTitle}>Project Gallery</Text>
+          <Text style={styles.headerTitle}>{t('gallery.projectPhotos')}</Text>
           <Text style={styles.headerSubtitle}>
-            {filteredProjects.length} projects • {totalPhotos} photos
+            {filteredProjects.length} {t('jobs.projects')} • {totalPhotos} {t('gallery.photos').toLowerCase()}
           </Text>
         </View>
         <View style={styles.headerActions}>
@@ -144,7 +146,7 @@ export default function GalleryScreen() {
           >
             <Text style={styles.uploadBtnIcon}>➕</Text>
             <Text style={styles.uploadBtnText}>
-              {isBusy ? 'Working…' : 'Add'}
+              {isBusy ? t('common.loading') : t('common.add')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -233,10 +235,10 @@ export default function GalleryScreen() {
         {filteredProjects.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateIcon}>📷</Text>
-            <Text style={styles.emptyStateText}>No projects found</Text>
-            <Text style={styles.emptyStateSubtext}>Try a different category or add new photos</Text>
+            <Text style={styles.emptyStateText}>{t('gallery.noPhotos')}</Text>
+            <Text style={styles.emptyStateSubtext}>{t('gallery.noPhotosDesc')}</Text>
             <TouchableOpacity style={styles.emptyStateBtn} onPress={() => beginAttach('library')}>
-              <Text style={styles.emptyStateBtnText}>Add Photos</Text>
+              <Text style={styles.emptyStateBtnText}>{t('gallery.addPhotos', 'Add Photos')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -255,10 +257,10 @@ export default function GalleryScreen() {
           onPress={() => setAttachModalVisible(false)}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Attach photos to…</Text>
+            <Text style={styles.modalTitle}>{t('gallery.attachPhotosTo', 'Attach photos to…')}</Text>
 
             <Pressable style={styles.modalOption} onPress={() => runAttach(null)}>
-              <Text style={styles.modalOptionText}>Unassigned</Text>
+              <Text style={styles.modalOptionText}>{t('gallery.unassigned', 'Unassigned')}</Text>
               <Text style={styles.chevron}>›</Text>
             </Pressable>
 
@@ -276,13 +278,13 @@ export default function GalleryScreen() {
               ))}
               {jobs.length === 0 ? (
                 <View style={styles.modalEmpty}>
-                  <Text style={styles.modalEmptyText}>No jobs yet. Create one in Jobs → New.</Text>
+                  <Text style={styles.modalEmptyText}>{t('gallery.noJobsYet', 'No jobs yet. Create one in Jobs → New.')}</Text>
                 </View>
               ) : null}
             </ScrollView>
 
             <Pressable style={styles.modalCancel} onPress={() => setAttachModalVisible(false)}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </Pressable>
           </View>
         </TouchableOpacity>

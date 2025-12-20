@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
+import { useTranslation } from 'react-i18next';
 import { colors, borderRadius, fontSize, spacing, shadows } from '../../constants/theme';
 import { PriorityPicker } from './PriorityPicker';
 import { JobPicker } from './JobPicker';
@@ -33,6 +34,7 @@ export function TaskFormModal({
   initialTask,
   initialDate,
 }: TaskFormModalProps) {
+  const { t, i18n } = useTranslation();
   const isEditMode = !!initialTask;
 
   const [title, setTitle] = useState('');
@@ -61,7 +63,7 @@ export function TaskFormModal({
 
   const handleSave = async () => {
     if (!title.trim()) {
-      Alert.alert('Missing Title', 'Please enter a task title.');
+      Alert.alert(t('tasks.missingTitle', 'Missing Title'), t('tasks.enterTaskTitle', 'Please enter a task title.'));
       return;
     }
 
@@ -76,7 +78,7 @@ export function TaskFormModal({
       onClose();
     } catch (error) {
       console.error('Error saving task:', error);
-      Alert.alert('Error', 'Failed to save task. Please try again.');
+      Alert.alert(t('common.error'), t('tasks.failedToSave', 'Failed to save task. Please try again.'));
     } finally {
       setIsSaving(false);
     }
@@ -91,10 +93,12 @@ export function TaskFormModal({
     setDueDate(null);
   };
 
+  const locale = i18n.language || 'en';
+
   const formatDisplayDate = (dateStr: string | null): string => {
-    if (!dateStr) return 'Select date';
+    if (!dateStr) return t('tasks.selectDate', 'Select date');
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(locale, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -136,7 +140,7 @@ export function TaskFormModal({
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>
-              {isEditMode ? 'Edit Task' : 'New Task'}
+              {isEditMode ? t('calendar.editTask') : t('calendar.newTask')}
             </Text>
             <Pressable onPress={onClose} disabled={isSaving}>
               <FontAwesome name="times" size={20} color={colors.neutral[400]} />
@@ -146,12 +150,12 @@ export function TaskFormModal({
           <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
             {/* Title */}
             <View style={styles.field}>
-              <Text style={styles.label}>Title *</Text>
+              <Text style={styles.label}>{t('calendar.taskTitle')} *</Text>
               <TextInput
                 style={styles.input}
                 value={title}
                 onChangeText={setTitle}
-                placeholder="What needs to be done?"
+                placeholder={t('tasks.whatNeedsDone', 'What needs to be done?')}
                 placeholderTextColor={colors.neutral[500]}
                 editable={!isSaving}
                 autoFocus={!isEditMode}
@@ -160,7 +164,7 @@ export function TaskFormModal({
 
             {/* Due Date */}
             <View style={styles.field}>
-              <Text style={styles.label}>Due Date</Text>
+              <Text style={styles.label}>{t('calendar.dueDate')}</Text>
               <Pressable
                 style={styles.dateButton}
                 onPress={() => setShowDatePicker(true)}
@@ -209,7 +213,7 @@ export function TaskFormModal({
 
             {/* Priority */}
             <View style={styles.field}>
-              <Text style={styles.label}>Priority</Text>
+              <Text style={styles.label}>{t('calendar.priority')}</Text>
               <PriorityPicker
                 value={priority}
                 onChange={setPriority}
@@ -219,7 +223,7 @@ export function TaskFormModal({
 
             {/* Job Link */}
             <View style={styles.field}>
-              <Text style={styles.label}>Link to Job</Text>
+              <Text style={styles.label}>{t('calendar.linkToJob')}</Text>
               <JobPicker
                 value={jobId}
                 onChange={setJobId}
@@ -235,7 +239,7 @@ export function TaskFormModal({
               onPress={onClose}
               disabled={isSaving}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable
               style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
@@ -246,7 +250,7 @@ export function TaskFormModal({
                 <ActivityIndicator size="small" color={colors.white} />
               ) : (
                 <Text style={styles.saveButtonText}>
-                  {isEditMode ? 'Save Changes' : 'Create Task'}
+                  {isEditMode ? t('jobs.saveChanges') : t('tasks.createTask', 'Create Task')}
                 </Text>
               )}
             </Pressable>

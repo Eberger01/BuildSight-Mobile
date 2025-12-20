@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 import { styles } from '@/styles/settingsStyles';
 import { ProfileModal } from '@/components/settings/ProfileModal';
@@ -19,6 +20,8 @@ import { listAllTasksAsync } from '@/data/repos/tasksRepo';
 import { defaultSettings, ESTIMATE_DRAFT_KEY, loadSettingsAsync, SETTINGS_KEY, SettingsData } from '@/data/settings';
 import { isApiKeyConfigured } from '@/services/geminiService';
 import { exportJsonAndShareAsync } from '@/utils/exportDownload';
+import { LANGUAGE_OPTIONS, LanguageCode, changeLanguage } from '@/i18n';
+import i18n from '@/i18n';
 
 const currencyOptions: Array<{ label: string; value: CurrencyCode }> = [
   { label: 'USD ($)', value: 'USD' },
@@ -31,26 +34,29 @@ const countryList = getCountryList();
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { credits, planType, isBackendConfigured } = useCredits();
   const [settings, setSettings] = useState<SettingsData>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [profile, setProfile] = useState<ProfileData>(defaultProfile);
   const [isBusy, setIsBusy] = useState(false);
+  const [currentLanguage, setCurrentLanguage] = useState<LanguageCode>(i18n.language as LanguageCode || 'en');
 
   // Get plan display name
   const getPlanDisplayName = () => {
     switch (planType) {
       case 'pro_monthly':
-        return 'Pro Monthly';
+        return t('settings.plans.proMonthly');
       case 'pack10':
-        return 'Credit Pack';
+        return t('settings.plans.creditPack');
       case 'single':
-        return 'Pay-as-you-go';
+        return t('settings.plans.payAsYouGo');
       default:
-        return isBackendConfigured ? 'Free Plan' : 'Direct Mode';
+        return isBackendConfigured ? t('settings.plans.freePlan') : t('settings.plans.directMode');
     }
   };
 
@@ -71,36 +77,47 @@ export default function SettingsScreen() {
       await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
     } catch (error) {
       console.error('Failed to save setting:', error);
-      Alert.alert('Error', 'Failed to save setting. Please try again.');
+      Alert.alert(t('common.error'), t('settings.errorSaveSetting'));
+    }
+  };
+
+  const saveMultipleSettings = async (updates: Partial<SettingsData>) => {
+    try {
+      const newSettings = { ...settings, ...updates };
+      setSettings(newSettings);
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      Alert.alert(t('common.error'), t('settings.errorSaveSetting'));
     }
   };
 
   const handlePhotoQualityPress = () => {
     const options: Array<{ label: string; value: 'high' | 'medium' | 'low' }> = [
-      { label: 'High (Original)', value: 'high' },
-      { label: 'Medium (Balanced)', value: 'medium' },
-      { label: 'Low (Compressed)', value: 'low' },
+      { label: t('settings.photoQualityHigh'), value: 'high' },
+      { label: t('settings.photoQualityMedium'), value: 'medium' },
+      { label: t('settings.photoQualityLow'), value: 'low' },
     ];
 
     Alert.alert(
-      'Photo Quality',
-      'Select the quality for captured photos',
+      t('settings.photoQuality'),
+      t('settings.selectPhotoQuality'),
       [
         ...options.map(option => ({
           text: option.label,
           onPress: () => saveSetting('photoQuality', option.value),
         })),
-        { text: 'Cancel', style: 'cancel' as const },
+        { text: t('common.cancel'), style: 'cancel' as const },
       ]
     );
   };
 
   const getPhotoQualityLabel = () => {
     switch (settings.photoQuality) {
-      case 'high': return 'High (Original)';
-      case 'medium': return 'Medium (Balanced)';
-      case 'low': return 'Low (Compressed)';
-      default: return 'High (Original)';
+      case 'high': return t('settings.photoQualityHigh');
+      case 'medium': return t('settings.photoQualityMedium');
+      case 'low': return t('settings.photoQualityLow');
+      default: return t('settings.photoQualityHigh');
     }
   };
 
@@ -111,9 +128,11 @@ export default function SettingsScreen() {
 
   const handleCountrySelect = (code: CountryCode) => {
     const countryConfig = COUNTRIES[code];
-    // Update country and auto-set currency to match
-    saveSetting('country', code);
-    saveSetting('currency', countryConfig.currency);
+    // Update country and auto-set currency to match (save both at once to avoid race condition)
+    saveMultipleSettings({
+      country: code,
+      currency: countryConfig.currency,
+    });
     setCountryModalVisible(false);
   };
 
@@ -130,6 +149,22 @@ export default function SettingsScreen() {
   const getCountryLabel = () => {
     const country = COUNTRIES[settings.country];
     return country ? `${country.flag} ${country.name}` : '🇩🇪 Germany';
+  };
+
+  const getLanguageLabel = () => {
+    const lang = LANGUAGE_OPTIONS.find(l => l.code === currentLanguage);
+    return lang ? lang.native : 'English';
+  };
+
+  const handleLanguageSelect = async (code: LanguageCode) => {
+    try {
+      await changeLanguage(code);
+      setCurrentLanguage(code);
+      setLanguageModalVisible(false);
+    } catch (error) {
+      console.error('Failed to change language:', error);
+      Alert.alert(t('common.error'), t('errors.saveFailed'));
+    }
   };
 
   const profileSubtitle = useMemo(() => {
@@ -180,12 +215,12 @@ export default function SettingsScreen() {
 
   const handleClearCache = async () => {
     Alert.alert(
-      'Clear local data?',
-      'This deletes local photos/PDFs and resets the local database. Settings will be kept.',
+      t('settings.clearCacheConfirm'),
+      t('settings.clearCacheWarning'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Clear',
+          text: t('settings.clear'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -193,9 +228,9 @@ export default function SettingsScreen() {
               await deleteAllAppFilesAsync();
               await resetDbAsync();
               await AsyncStorage.removeItem(ESTIMATE_DRAFT_KEY);
-              Alert.alert('Done', 'Local cache cleared.');
+              Alert.alert(t('settings.cacheClearedTitle'), t('settings.cacheClearedMsg'));
             } catch (e) {
-              Alert.alert('Error', e instanceof Error ? e.message : 'Failed to clear cache.');
+              Alert.alert(t('common.error'), e instanceof Error ? e.message : t('errors.genericError'));
             } finally {
               setIsBusy(false);
             }
@@ -208,7 +243,7 @@ export default function SettingsScreen() {
   if (isLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <Text style={styles.loadingText}>Loading settings...</Text>
+        <Text style={styles.loadingText}>{t('settings.loadingSettings')}</Text>
       </View>
     );
   }
@@ -222,12 +257,12 @@ export default function SettingsScreen() {
     >
       {/* AI Settings Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>AI Settings</Text>
+        <Text style={styles.sectionTitle}>{t('settings.aiSettings')}</Text>
         <View style={styles.settingsCard}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>AI Estimation</Text>
-              <Text style={styles.settingDescription}>Enable Gemini 3 Pro for cost estimation</Text>
+              <Text style={styles.settingLabel}>{t('settings.aiEnabled')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.aiEnabledDesc')}</Text>
             </View>
             <Switch
               value={settings.aiEnabled}
@@ -241,14 +276,14 @@ export default function SettingsScreen() {
             style={styles.settingRow}
             onPress={() =>
               Alert.alert(
-                'AI Model',
-                `Model: gemini-3-pro-preview\nAPI key: ${isApiKeyConfigured() ? 'configured' : 'missing'}`
+                t('settings.aiModel'),
+                `Model: ${t('settings.aiModelName')}\nAPI key: ${isApiKeyConfigured() ? t('settings.apiKeyConfigured') : t('settings.apiKeyMissing')}`
               )
             }
           >
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>AI Model</Text>
-              <Text style={styles.settingDescription}>Gemini 3 Pro Preview</Text>
+              <Text style={styles.settingLabel}>{t('settings.aiModel')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.aiModelName')}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -257,12 +292,12 @@ export default function SettingsScreen() {
 
       {/* Camera Settings Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Camera Settings</Text>
+        <Text style={styles.sectionTitle}>{t('settings.camera')}</Text>
         <View style={styles.settingsCard}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Auto-Upload Photos</Text>
-              <Text style={styles.settingDescription}>Upload photos to gallery automatically</Text>
+              <Text style={styles.settingLabel}>{t('settings.autoUpload')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.autoUploadDesc')}</Text>
             </View>
             <Switch
               value={settings.autoUpload}
@@ -274,7 +309,7 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <Pressable style={styles.settingRow} onPress={handlePhotoQualityPress}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Photo Quality</Text>
+              <Text style={styles.settingLabel}>{t('settings.photoQuality')}</Text>
               <Text style={styles.settingDescription}>{getPhotoQualityLabel()}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
@@ -284,12 +319,12 @@ export default function SettingsScreen() {
 
       {/* Notifications Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
+        <Text style={styles.sectionTitle}>{t('settings.notifications')}</Text>
         <View style={styles.settingsCard}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Push Notifications</Text>
-              <Text style={styles.settingDescription}>Get updates about your projects</Text>
+              <Text style={styles.settingLabel}>{t('settings.pushNotifications')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.pushNotificationsDesc')}</Text>
             </View>
             <Switch
               value={settings.notifications}
@@ -303,12 +338,12 @@ export default function SettingsScreen() {
 
       {/* App Settings Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>App Settings</Text>
+        <Text style={styles.sectionTitle}>{t('settings.appSettings')}</Text>
         <View style={styles.settingsCard}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Auto-Save Drafts</Text>
-              <Text style={styles.settingDescription}>Automatically save estimate drafts</Text>
+              <Text style={styles.settingLabel}>{t('settings.autoSave')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.autoSaveDesc')}</Text>
             </View>
             <Switch
               value={settings.autoSave}
@@ -320,7 +355,7 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <Pressable style={styles.settingRow} onPress={() => setCountryModalVisible(true)}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Country/Region</Text>
+              <Text style={styles.settingLabel}>{t('settings.country')}</Text>
               <Text style={styles.settingDescription}>{getCountryLabel()}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
@@ -328,7 +363,7 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <Pressable style={styles.settingRow} onPress={() => setCurrencyModalVisible(true)}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Currency</Text>
+              <Text style={styles.settingLabel}>{t('settings.currency')}</Text>
               <Text style={styles.settingDescription}>{getCurrencyLabel()}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
@@ -336,11 +371,11 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <Pressable
             style={styles.settingRow}
-            onPress={() => Alert.alert('Coming soon', 'Language selection is not implemented yet.')}
+            onPress={() => setLanguageModalVisible(true)}
           >
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Language</Text>
-              <Text style={styles.settingDescription}>English</Text>
+              <Text style={styles.settingLabel}>{t('settings.language')}</Text>
+              <Text style={styles.settingDescription}>{getLanguageLabel()}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -349,12 +384,12 @@ export default function SettingsScreen() {
 
       {/* Account Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account</Text>
+        <Text style={styles.sectionTitle}>{t('settings.account')}</Text>
         <View style={styles.settingsCard}>
           <Pressable style={styles.settingRow} onPress={() => setProfileModalVisible(true)}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Profile</Text>
-              <Text style={styles.settingDescription}>{profileSubtitle}</Text>
+              <Text style={styles.settingLabel}>{t('settings.profile')}</Text>
+              <Text style={styles.settingDescription}>{profileSubtitle === 'Not set' ? t('common.notSet') : profileSubtitle}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -364,9 +399,9 @@ export default function SettingsScreen() {
             onPress={() => router.push('/subscription')}
           >
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Subscription</Text>
+              <Text style={styles.settingLabel}>{t('settings.subscription')}</Text>
               <Text style={styles.settingDescription}>
-                {getPlanDisplayName()} {isBackendConfigured ? `• ${credits} credits` : ''}
+                {getPlanDisplayName()} {isBackendConfigured ? `• ${credits} ${t('settings.credits')}` : ''}
               </Text>
             </View>
             {isBackendConfigured && <CreditBadge size="small" pressable={false} />}
@@ -377,20 +412,20 @@ export default function SettingsScreen() {
 
       {/* Data Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data</Text>
+        <Text style={styles.sectionTitle}>{t('settings.data')}</Text>
         <View style={styles.settingsCard}>
           <Pressable style={styles.settingRow} onPress={handleExport} disabled={isBusy}>
             <View style={styles.settingInfo}>
-              <Text style={styles.settingLabel}>Export Data</Text>
-              <Text style={styles.settingDescription}>Download your estimates and projects</Text>
+              <Text style={styles.settingLabel}>{t('settings.exportData')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.exportDataDesc')}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
           <View style={styles.divider} />
           <Pressable style={styles.settingRow} onPress={handleClearCache} disabled={isBusy}>
             <View style={styles.settingInfo}>
-              <Text style={[styles.settingLabel, styles.dangerText]}>Clear Cache</Text>
-              <Text style={styles.settingDescription}>Free up storage space</Text>
+              <Text style={[styles.settingLabel, styles.dangerText]}>{t('settings.clearCache')}</Text>
+              <Text style={styles.settingDescription}>{t('settings.clearCacheDesc')}</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -399,9 +434,9 @@ export default function SettingsScreen() {
 
       {/* App Info */}
       <View style={styles.appInfo}>
-        <Text style={styles.appVersion}>BuildSight v1.0.0</Text>
-        <Text style={styles.appPowered}>Powered by Gemini 3 Pro</Text>
-        <Text style={styles.appCopyright}>© 2025 BuildSight. All rights reserved.</Text>
+        <Text style={styles.appVersion}>{t('settings.appVersion')}</Text>
+        <Text style={styles.appPowered}>{t('settings.poweredBy')}</Text>
+        <Text style={styles.appCopyright}>{t('settings.copyright')}</Text>
       </View>
 
       {/* Currency Selection Modal */}
@@ -417,7 +452,7 @@ export default function SettingsScreen() {
           onPress={() => setCurrencyModalVisible(false)}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Currency</Text>
+            <Text style={styles.modalTitle}>{t('settings.selectCurrency')}</Text>
             {currencyOptions.map((option, index) => (
               <TouchableOpacity
                 key={option.value}
@@ -445,7 +480,7 @@ export default function SettingsScreen() {
               style={styles.modalCancel}
               onPress={() => setCurrencyModalVisible(false)}
             >
-              <Text style={styles.modalCancelText}>Cancel</Text>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -464,8 +499,8 @@ export default function SettingsScreen() {
           onPress={() => setCountryModalVisible(false)}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Country/Region</Text>
-            <Text style={styles.modalSubtitle}>Used for regional pricing in estimates</Text>
+            <Text style={styles.modalTitle}>{t('settings.selectCountry')}</Text>
+            <Text style={styles.modalSubtitle}>{t('settings.countryUsedFor')}</Text>
             <ScrollView style={{ maxHeight: 300 }}>
               {countryList.map((country, index) => (
                 <TouchableOpacity
@@ -495,7 +530,54 @@ export default function SettingsScreen() {
               style={styles.modalCancel}
               onPress={() => setCountryModalVisible(false)}
             >
-              <Text style={styles.modalCancelText}>Cancel</Text>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Language Selection Modal */}
+      <Modal
+        visible={languageModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLanguageModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setLanguageModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{t('settings.selectLanguage')}</Text>
+            {LANGUAGE_OPTIONS.map((option, index) => (
+              <TouchableOpacity
+                key={option.code}
+                style={[
+                  styles.modalOption,
+                  index < LANGUAGE_OPTIONS.length - 1 && styles.modalOptionBorder,
+                  currentLanguage === option.code && styles.modalOptionSelected,
+                ]}
+                onPress={() => handleLanguageSelect(option.code)}
+              >
+                <Text
+                  style={[
+                    styles.modalOptionText,
+                    currentLanguage === option.code && styles.modalOptionTextSelected,
+                  ]}
+                >
+                  {option.native} ({option.label})
+                </Text>
+                {currentLanguage === option.code && (
+                  <Text style={styles.checkmark}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.modalCancel}
+              onPress={() => setLanguageModalVisible(false)}
+            >
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

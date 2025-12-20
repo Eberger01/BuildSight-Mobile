@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { borderRadius, colors, darkTheme, fontSize, fontWeight, shadows, spacing } from '@/constants/theme';
 import { PROJECT_TYPES, TIMELINE_OPTIONS, Photo, ProjectData } from '@/types';
@@ -30,9 +31,49 @@ type Props = {
 };
 
 export function EstimateForm(props: Props) {
+  const { t } = useTranslation();
   const { formData, photos, isLoading, error, onChange, onRemovePhoto, onTakePhoto, onPickImages, onSubmit, onSaveDraft, onClearForm } = props;
   const [showProjectTypes, setShowProjectTypes] = useState(false);
   const [showTimelines, setShowTimelines] = useState(false);
+
+  // Get translated timeline options
+  const getTimelineLabel = (value: string) => {
+    switch (value) {
+      case 'asap': return t('estimate.timelines.asap');
+      case '1-2weeks': return t('estimate.timelines.1-2weeks');
+      case '1month': return t('estimate.timelines.1month');
+      case '2-3months': return t('estimate.timelines.2-3months');
+      case 'flexible': return t('estimate.timelines.flexible');
+      default: return value;
+    }
+  };
+
+  // Get translated project type
+  const getProjectTypeLabel = (type: string) => {
+    const typeKey = type.toLowerCase().replace(/[^a-z]/g, '') as keyof typeof projectTypeKeys;
+    const projectTypeKeys = {
+      kitchenremodel: 'kitchen',
+      bathroomupgrade: 'bathroom',
+      fenceinstallation: 'fence',
+      deckbuilding: 'deck',
+      interiorpainting: 'painting',
+      roofingrepairing: 'roofing',
+      flooringinstallation: 'flooring',
+      landscaping: 'landscaping',
+      plumbing: 'plumbing',
+      electrical: 'electrical',
+      hvac: 'hvac',
+      windowsdoors: 'windows',
+      siding: 'siding',
+      concretework: 'concrete',
+      other: 'other',
+    };
+    const key = projectTypeKeys[typeKey];
+    if (key) {
+      return t(`estimate.projectTypes.${key}`);
+    }
+    return type;
+  };
 
   return (
     <KeyboardAvoidingView
@@ -50,40 +91,40 @@ export function EstimateForm(props: Props) {
       >
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.title}>New Project Estimate</Text>
-            <Text style={styles.subtitle}>Fill in the details to generate an AI-powered estimate</Text>
+            <Text style={styles.title}>{t('estimateForm.newProjectEstimate', 'New Project Estimate')}</Text>
+            <Text style={styles.subtitle}>{t('estimateForm.fillDetails', 'Fill in the details to generate an AI-powered estimate')}</Text>
           </View>
           <View style={styles.headerRight}>
             {onClearForm && (
               <TouchableOpacity style={styles.clearButton} onPress={onClearForm} disabled={isLoading}>
-                <Text style={styles.clearButtonText}>Clear</Text>
+                <Text style={styles.clearButtonText}>{t('estimateForm.clear', 'Clear')}</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Client Information</Text>
+          <Text style={styles.sectionTitle}>{t('estimate.clientInfo')}</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Client Name *</Text>
+            <Text style={styles.label}>{t('jobs.clientNameRequired')}</Text>
             <TextInput
               style={styles.input}
               value={formData.clientName}
               onChangeText={(value) => onChange('clientName', value)}
-              placeholder="John Smith"
+              placeholder={t('estimateForm.clientPlaceholder', 'John Smith')}
               placeholderTextColor={colors.neutral[500]}
               editable={!isLoading}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address *</Text>
+            <Text style={styles.label}>{t('estimate.email')} *</Text>
             <TextInput
               style={styles.input}
               value={formData.email}
               onChangeText={(value) => onChange('email', value)}
-              placeholder="john@example.com"
+              placeholder={t('profile.contactEmailPlaceholder')}
               placeholderTextColor={colors.neutral[500]}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -92,12 +133,12 @@ export function EstimateForm(props: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number *</Text>
+            <Text style={styles.label}>{t('estimate.phone')} *</Text>
             <TextInput
               style={styles.input}
               value={formData.phone}
               onChangeText={(value) => onChange('phone', value)}
-              placeholder="(555) 123-4567"
+              placeholder={t('profile.contactPhonePlaceholder')}
               placeholderTextColor={colors.neutral[500]}
               keyboardType="phone-pad"
               editable={!isLoading}
@@ -106,17 +147,17 @@ export function EstimateForm(props: Props) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Project Details</Text>
+          <Text style={styles.sectionTitle}>{t('estimate.projectDetails')}</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Project Type *</Text>
+            <Text style={styles.label}>{t('jobs.projectTypeRequired')}</Text>
             <TouchableOpacity
               style={styles.dropdown}
               onPress={() => setShowProjectTypes(!showProjectTypes)}
               disabled={isLoading}
             >
               <Text style={formData.projectType ? styles.dropdownText : styles.dropdownPlaceholder}>
-                {formData.projectType || 'Select project type...'}
+                {formData.projectType ? getProjectTypeLabel(formData.projectType) : t('estimateForm.selectProjectType', 'Select project type...')}
               </Text>
               <Text style={styles.dropdownArrow}>{showProjectTypes ? '▲' : '▼'}</Text>
             </TouchableOpacity>
@@ -131,7 +172,7 @@ export function EstimateForm(props: Props) {
                       setShowProjectTypes(false);
                     }}
                   >
-                    <Text style={styles.dropdownItemText}>{type}</Text>
+                    <Text style={styles.dropdownItemText}>{getProjectTypeLabel(type)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -140,7 +181,7 @@ export function EstimateForm(props: Props) {
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Square Footage</Text>
+              <Text style={styles.label}>{t('estimateForm.squareFootage', 'Square Footage')}</Text>
               <TextInput
                 style={styles.input}
                 value={formData.squareFootage}
@@ -153,14 +194,14 @@ export function EstimateForm(props: Props) {
             </View>
 
             <View style={[styles.inputGroup, styles.halfWidth]}>
-              <Text style={styles.label}>Timeline</Text>
+              <Text style={styles.label}>{t('estimate.timeline')}</Text>
               <TouchableOpacity
                 style={styles.dropdown}
                 onPress={() => setShowTimelines(!showTimelines)}
                 disabled={isLoading}
               >
                 <Text style={formData.timeline ? styles.dropdownText : styles.dropdownPlaceholder}>
-                  {TIMELINE_OPTIONS.find((t) => t.value === formData.timeline)?.label || 'Select...'}
+                  {formData.timeline ? getTimelineLabel(formData.timeline) : t('estimateForm.select', 'Select...')}
                 </Text>
                 <Text style={styles.dropdownArrow}>{showTimelines ? '▲' : '▼'}</Text>
               </TouchableOpacity>
@@ -175,7 +216,7 @@ export function EstimateForm(props: Props) {
                         setShowTimelines(false);
                       }}
                     >
-                      <Text style={styles.dropdownItemText}>{option.label}</Text>
+                      <Text style={styles.dropdownItemText}>{getTimelineLabel(option.value)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -184,12 +225,12 @@ export function EstimateForm(props: Props) {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Project Description *</Text>
+            <Text style={styles.label}>{t('estimate.description')} *</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
               value={formData.description}
               onChangeText={(value) => onChange('description', value)}
-              placeholder="Describe the project in detail..."
+              placeholder={t('estimate.descriptionPlaceholder')}
               placeholderTextColor={colors.neutral[500]}
               multiline
               numberOfLines={5}
@@ -201,9 +242,9 @@ export function EstimateForm(props: Props) {
 
         <View style={styles.section}>
           <View style={styles.photoHeader}>
-            <Text style={styles.sectionTitle}>Project Photos</Text>
+            <Text style={styles.sectionTitle}>{t('estimateForm.projectPhotos', 'Project Photos')}</Text>
             <View style={styles.photoBadge}>
-              <Text style={styles.photoBadgeText}>{photos.length} photo{photos.length !== 1 ? 's' : ''}</Text>
+              <Text style={styles.photoBadgeText}>{photos.length} {photos.length !== 1 ? t('gallery.photos').toLowerCase() : t('gallery.photo').toLowerCase()}</Text>
             </View>
           </View>
 
@@ -223,11 +264,11 @@ export function EstimateForm(props: Props) {
           <View style={styles.photoActions}>
             <TouchableOpacity style={styles.photoButton} onPress={onTakePhoto} disabled={isLoading}>
               <Text style={styles.photoButtonIcon}>📷</Text>
-              <Text style={styles.photoButtonText}>Take Photo</Text>
+              <Text style={styles.photoButtonText}>{t('estimateForm.takePhoto', 'Take Photo')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.photoButton} onPress={onPickImages} disabled={isLoading}>
               <Text style={styles.photoButtonIcon}>🖼️</Text>
-              <Text style={styles.photoButtonText}>Choose from Gallery</Text>
+              <Text style={styles.photoButtonText}>{t('estimateForm.chooseFromGallery', 'Choose from Gallery')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -246,7 +287,7 @@ export function EstimateForm(props: Props) {
               onPress={onSaveDraft}
               disabled={isLoading}
             >
-              <Text style={styles.saveDraftButtonText}>Save Draft</Text>
+              <Text style={styles.saveDraftButtonText}>{t('estimateForm.saveDraft', 'Save Draft')}</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -257,20 +298,20 @@ export function EstimateForm(props: Props) {
             {isLoading ? (
               <>
                 <ActivityIndicator color={colors.white} size="small" />
-                <Text style={styles.submitButtonText}>Generating Estimate...</Text>
+                <Text style={styles.submitButtonText}>{t('estimate.generating')}</Text>
               </>
             ) : (
-              <Text style={styles.submitButtonText}>Generate AI Estimate</Text>
+              <Text style={styles.submitButtonText}>{t('estimateForm.generateAIEstimate', 'Generate AI Estimate')}</Text>
             )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.tipsCard}>
-          <Text style={styles.tipsTitle}>Estimation Tips</Text>
-          <Text style={styles.tipItem}>- Provide detailed project descriptions for accuracy</Text>
-          <Text style={styles.tipItem}>- Include square footage when applicable</Text>
-          <Text style={styles.tipItem}>- Photos help improve estimate accuracy</Text>
-          <Text style={styles.tipItem}>- Mention specific materials or preferences</Text>
+          <Text style={styles.tipsTitle}>{t('estimateForm.estimationTips', 'Estimation Tips')}</Text>
+          <Text style={styles.tipItem}>- {t('estimateForm.tip1', 'Provide detailed project descriptions for accuracy')}</Text>
+          <Text style={styles.tipItem}>- {t('estimateForm.tip2', 'Include square footage when applicable')}</Text>
+          <Text style={styles.tipItem}>- {t('estimateForm.tip3', 'Photos help improve estimate accuracy')}</Text>
+          <Text style={styles.tipItem}>- {t('estimateForm.tip4', 'Mention specific materials or preferences')}</Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
 import { countEstimatesAsync } from '@/data/repos/estimatesRepo';
 import { JobRow, listJobsAsync } from '@/data/repos/jobsRepo';
@@ -11,6 +12,7 @@ import { formatCurrency } from '@/utils/formatters';
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [tasks, setTasks] = useState<TaskWithJob[]>([]);
   const [estimatesCount, setEstimatesCount] = useState(0);
@@ -74,12 +76,12 @@ export default function DashboardScreen() {
     const totalRevenueCents = jobs.filter((j) => j.status === 'Completed').reduce((sum, j) => sum + (j.budgetCents || 0), 0);
 
     return [
-      { label: 'Active Jobs', value: String(activeJobs), icon: '🔨', trend: '', color: 'primary' },
-      { label: 'Saved Estimates', value: String(estimatesCount), icon: '📋', trend: '', color: 'accent' },
-      { label: 'Completed This Month', value: String(completedThisMonth), icon: '✅', trend: '', color: 'success' },
-      { label: 'Total Revenue', value: formatCurrency(totalRevenueCents / 100, currency), icon: '💰', trend: '', color: 'success' },
+      { label: t('dashboard.activeJobs'), value: String(activeJobs), icon: '🔨', trend: '', color: 'primary' },
+      { label: t('dashboard.savedEstimates'), value: String(estimatesCount), icon: '📋', trend: '', color: 'accent' },
+      { label: t('dashboard.completedThisMonth'), value: String(completedThisMonth), icon: '✅', trend: '', color: 'success' },
+      { label: t('dashboard.totalRevenue'), value: formatCurrency(totalRevenueCents / 100, currency), icon: '💰', trend: '', color: 'success' },
     ] as const;
-  }, [jobs, estimatesCount, currency]);
+  }, [jobs, estimatesCount, currency, t]);
 
   const recentJobs = useMemo(() => jobs.slice(0, 4), [jobs]);
 
@@ -98,14 +100,14 @@ export default function DashboardScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.welcomeText}>Welcome back! 👋</Text>
-          <Text style={styles.subtitle}>Here's what's happening with your projects today.</Text>
+          <Text style={styles.welcomeText}>{t('dashboard.welcome')}</Text>
+          <Text style={styles.subtitle}>{t('dashboard.subtitle')}</Text>
         </View>
         <Pressable
           style={styles.newEstimateBtn}
           onPress={() => router.push('/estimate')}
         >
-          <Text style={styles.newEstimateBtnText}>📝 New Estimate</Text>
+          <Text style={styles.newEstimateBtnText}>{t('dashboard.newEstimate')}</Text>
         </Pressable>
       </View>
 
@@ -128,9 +130,9 @@ export default function DashboardScreen() {
       {/* Recent Jobs Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Jobs</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.recentJobs')}</Text>
           <Pressable onPress={() => router.push('/jobs')}>
-            <Text style={styles.viewAllLink}>View All →</Text>
+            <Text style={styles.viewAllLink}>{t('common.viewAll')}</Text>
           </Pressable>
         </View>
         <View style={styles.jobsList}>
@@ -151,14 +153,14 @@ export default function DashboardScreen() {
                 </View>
                 <Text style={styles.progressText}>{job.progress}%</Text>
               </View>
-              <Text style={styles.jobDate}>Started: {job.startDate}</Text>
+              <Text style={styles.jobDate}>{t('dashboard.started')}: {job.startDate}</Text>
             </View>
           ))}
 
           {recentJobs.length === 0 && (
             <View style={styles.jobCard}>
-              <Text style={styles.jobClient}>{isLoading ? 'Loading…' : 'No jobs yet'}</Text>
-              <Text style={styles.jobType}>{isLoading ? 'Fetching local data' : 'Create your first job in the Jobs tab.'}</Text>
+              <Text style={styles.jobClient}>{isLoading ? t('common.loading') : t('dashboard.noJobs')}</Text>
+              <Text style={styles.jobType}>{isLoading ? t('dashboard.fetchingData') : t('dashboard.noJobsDesc')}</Text>
             </View>
           )}
         </View>
@@ -167,9 +169,9 @@ export default function DashboardScreen() {
       {/* Upcoming Tasks Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Upcoming Tasks</Text>
+          <Text style={styles.sectionTitle}>{t('dashboard.upcomingTasks')}</Text>
           <Pressable onPress={() => router.push('/calendar')}>
-            <Text style={styles.viewAllLink}>View Calendar →</Text>
+            <Text style={styles.viewAllLink}>{t('dashboard.viewCalendar')}</Text>
           </Pressable>
         </View>
         <View style={styles.tasksList}>
@@ -179,7 +181,7 @@ export default function DashboardScreen() {
               <View style={styles.taskContent}>
                 <Text style={[styles.taskName, item.completed === 1 && styles.taskNameCompleted]}>{item.title}</Text>
                 <Text style={styles.taskTime}>
-                  {item.dueAt ? item.dueAt.slice(0, 10) : 'No date'}
+                  {item.dueAt ? item.dueAt.slice(0, 10) : t('common.noDate')}
                   {item.jobClientName ? ` • ${item.jobClientName}` : ''}
                 </Text>
               </View>
@@ -193,8 +195,8 @@ export default function DashboardScreen() {
             <View style={styles.taskItem}>
               <View style={[styles.taskPriority, { backgroundColor: colors.neutral[500] }]} />
               <View style={styles.taskContent}>
-                <Text style={styles.taskName}>{isLoading ? 'Loading…' : 'No tasks'}</Text>
-                <Text style={styles.taskTime}>{isLoading ? 'Fetching local data' : 'Tasks can be added later.'}</Text>
+                <Text style={styles.taskName}>{isLoading ? t('common.loading') : t('dashboard.noTasks')}</Text>
+                <Text style={styles.taskTime}>{isLoading ? t('dashboard.fetchingData') : t('dashboard.noTasksDesc')}</Text>
               </View>
               <View style={styles.checkBtn}>
                 <Text style={styles.checkBtnText}>•</Text>
@@ -207,8 +209,8 @@ export default function DashboardScreen() {
         <View style={styles.aiBanner}>
           <Text style={styles.aiIcon}>🤖</Text>
           <View style={styles.aiContent}>
-            <Text style={styles.aiTitle}>AI Estimation Ready</Text>
-            <Text style={styles.aiSubtitle}>Powered by Gemini 3 Pro</Text>
+            <Text style={styles.aiTitle}>{t('dashboard.aiReady')}</Text>
+            <Text style={styles.aiSubtitle}>{t('dashboard.poweredBy')}</Text>
           </View>
         </View>
       </View>

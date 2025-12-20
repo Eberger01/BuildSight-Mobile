@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { borderRadius, colors, darkTheme, fontSize, shadows, spacing } from '@/constants/theme';
 import { ProfileData } from '@/data/profile';
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function ProfileModal(props: Props) {
+  const { t } = useTranslation();
   const { visible, profile, onClose, onSave } = props;
   const [draft, setDraft] = useState<ProfileData>(profile);
 
@@ -23,26 +25,26 @@ export function ProfileModal(props: Props) {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.content} onPress={() => undefined}>
-          <Text style={styles.title}>Profile</Text>
+          <Text style={styles.title}>{t('settings.profile')}</Text>
 
           <View style={styles.group}>
-            <Text style={styles.label}>Company Name</Text>
+            <Text style={styles.label}>{t('profile.companyName')}</Text>
             <TextInput
               style={styles.input}
               value={draft.companyName}
               onChangeText={(v) => setDraft((p) => ({ ...p, companyName: v }))}
-              placeholder="BuildSight Construction"
+              placeholder={t('profile.companyNamePlaceholder')}
               placeholderTextColor={colors.neutral[500]}
             />
           </View>
 
           <View style={styles.group}>
-            <Text style={styles.label}>Contact Email</Text>
+            <Text style={styles.label}>{t('profile.contactEmail')}</Text>
             <TextInput
               style={styles.input}
               value={draft.contactEmail}
               onChangeText={(v) => setDraft((p) => ({ ...p, contactEmail: v }))}
-              placeholder="contact@company.com"
+              placeholder={t('profile.contactEmailPlaceholder')}
               placeholderTextColor={colors.neutral[500]}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -50,12 +52,12 @@ export function ProfileModal(props: Props) {
           </View>
 
           <View style={styles.group}>
-            <Text style={styles.label}>Contact Phone</Text>
+            <Text style={styles.label}>{t('profile.contactPhone')}</Text>
             <TextInput
               style={styles.input}
               value={draft.contactPhone}
               onChangeText={(v) => setDraft((p) => ({ ...p, contactPhone: v }))}
-              placeholder="(555) 123-4567"
+              placeholder={t('profile.contactPhonePlaceholder')}
               placeholderTextColor={colors.neutral[500]}
               keyboardType="phone-pad"
             />
@@ -63,10 +65,10 @@ export function ProfileModal(props: Props) {
 
           <View style={styles.actions}>
             <Pressable style={styles.ghostBtn} onPress={onClose}>
-              <Text style={styles.ghostText}>Cancel</Text>
+              <Text style={styles.ghostText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable style={styles.primaryBtn} onPress={() => onSave({ ...draft, companyName: draft.companyName.trim(), contactEmail: draft.contactEmail.trim(), contactPhone: draft.contactPhone.trim() })}>
-              <Text style={styles.primaryText}>Save</Text>
+              <Text style={styles.primaryText}>{t('common.save')}</Text>
             </Pressable>
           </View>
         </Pressable>

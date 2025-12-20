@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect, Stack } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors, borderRadius, fontSize, spacing, shadows } from '../../constants/theme';
 import { getPriorityColor, getPriorityLabel } from '../../components/tasks/PriorityPicker';
 import { TaskFormModal } from '../../components/tasks/TaskFormModal';
@@ -25,6 +26,7 @@ import {
 export default function TaskDetailScreen() {
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
   const router = useRouter();
+  const { t, i18n } = useTranslation();
 
   const [task, setTask] = useState<TaskWithJob | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,12 +73,12 @@ export default function TaskDetailScreen() {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Task',
-      'Are you sure you want to delete this task? This action cannot be undone.',
+      t('calendar.deleteTask'),
+      t('calendar.deleteTaskConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -84,7 +86,7 @@ export default function TaskDetailScreen() {
               router.back();
             } catch (error) {
               console.error('Error deleting task:', error);
-              Alert.alert('Error', 'Failed to delete task.');
+              Alert.alert(t('common.error'), t('errors.deleteFailed'));
             }
           },
         },
@@ -98,10 +100,12 @@ export default function TaskDetailScreen() {
     }
   };
 
+  const locale = i18n.language || 'en';
+
   const formatDate = (dateStr: string | null): string => {
-    if (!dateStr) return 'No due date';
+    if (!dateStr) return t('common.noDate');
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(locale, {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -116,7 +120,7 @@ export default function TaskDetailScreen() {
     const minutes = date.getMinutes();
     if (hours === 0 && minutes === 0) return '';
     if (hours === 12 && minutes === 0) return ''; // Default time set in modal
-    return date.toLocaleTimeString('en-US', {
+    return date.toLocaleTimeString(locale, {
       hour: 'numeric',
       minute: '2-digit',
     });
@@ -124,13 +128,22 @@ export default function TaskDetailScreen() {
 
   const formatTimestamp = (dateStr: string): string => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(locale, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
     });
+  };
+
+  const getPriorityLabelTranslated = (priority: string) => {
+    switch (priority) {
+      case 'high': return t('calendar.priorities.high');
+      case 'medium': return t('calendar.priorities.medium');
+      case 'low': return t('calendar.priorities.low');
+      default: return getPriorityLabel(priority);
+    }
   };
 
   if (loading) {
@@ -145,10 +158,10 @@ export default function TaskDetailScreen() {
     return (
       <View style={styles.errorContainer}>
         <FontAwesome name="exclamation-circle" size={48} color={colors.danger[500]} />
-        <Text style={styles.errorTitle}>Task Not Found</Text>
-        <Text style={styles.errorMessage}>This task may have been deleted.</Text>
+        <Text style={styles.errorTitle}>{t('calendar.taskNotFound')}</Text>
+        <Text style={styles.errorMessage}>{t('calendar.taskNotFoundDesc')}</Text>
         <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
+          <Text style={styles.backButtonText}>{t('calendar.goBack')}</Text>
         </Pressable>
       </View>
     );
@@ -184,13 +197,13 @@ export default function TaskDetailScreen() {
               color={isCompleted ? colors.success[500] : colors.neutral[500]}
             />
             <Text style={[styles.statusText, isCompleted && styles.statusTextCompleted]}>
-              {isCompleted ? 'Completed' : 'Pending'}
+              {isCompleted ? t('status.completed') : t('status.pending')}
             </Text>
           </View>
           <View style={[styles.priorityBadge, { backgroundColor: priorityColor + '20' }]}>
             <View style={[styles.priorityDot, { backgroundColor: priorityColor }]} />
             <Text style={[styles.priorityText, { color: priorityColor }]}>
-              {getPriorityLabel(task.priority)} Priority
+              {t('calendar.priorityLabel', { priority: getPriorityLabelTranslated(task.priority) })}
             </Text>
           </View>
         </View>
@@ -208,7 +221,7 @@ export default function TaskDetailScreen() {
               <FontAwesome name="calendar" size={16} color={colors.primary[500]} />
             </View>
             <View style={styles.detailContent}>
-              <Text style={styles.detailLabel}>Due Date</Text>
+              <Text style={styles.detailLabel}>{t('calendar.dueDate')}</Text>
               <Text style={styles.detailValue}>
                 {formatDate(task.dueAt)}
                 {formatTime(task.dueAt) && ` at ${formatTime(task.dueAt)}`}
@@ -223,7 +236,7 @@ export default function TaskDetailScreen() {
                 <FontAwesome name="briefcase" size={16} color={colors.primary[500]} />
               </View>
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Linked Job</Text>
+                <Text style={styles.detailLabel}>{t('calendar.linkedJob')}</Text>
                 <Text style={styles.detailValue}>{task.jobProjectType}</Text>
                 <Text style={styles.detailSubvalue}>{task.jobClientName}</Text>
               </View>
@@ -237,8 +250,8 @@ export default function TaskDetailScreen() {
                 <FontAwesome name="link" size={16} color={colors.neutral[500]} />
               </View>
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Linked Job</Text>
-                <Text style={styles.detailValueMuted}>No job linked</Text>
+                <Text style={styles.detailLabel}>{t('calendar.linkedJob')}</Text>
+                <Text style={styles.detailValueMuted}>{t('calendar.noJobLinked')}</Text>
               </View>
             </View>
           )}
@@ -246,8 +259,8 @@ export default function TaskDetailScreen() {
 
         {/* Timestamps */}
         <View style={styles.timestamps}>
-          <Text style={styles.timestamp}>Created: {formatTimestamp(task.createdAt)}</Text>
-          <Text style={styles.timestamp}>Updated: {formatTimestamp(task.updatedAt)}</Text>
+          <Text style={styles.timestamp}>{t('calendar.created')}: {formatTimestamp(task.createdAt)}</Text>
+          <Text style={styles.timestamp}>{t('calendar.updated')}: {formatTimestamp(task.updatedAt)}</Text>
         </View>
 
         {/* Action Button */}
@@ -269,7 +282,7 @@ export default function TaskDetailScreen() {
               isCompleted && styles.actionButtonTextSecondary,
             ]}
           >
-            {isCompleted ? 'Mark as Incomplete' : 'Mark as Complete'}
+            {isCompleted ? t('calendar.markIncomplete') : t('calendar.markComplete')}
           </Text>
         </Pressable>
       </ScrollView>
