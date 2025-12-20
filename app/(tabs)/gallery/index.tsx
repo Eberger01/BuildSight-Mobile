@@ -117,7 +117,7 @@ export default function GalleryScreen() {
   };
 
   const handleProjectPress = (item: GalleryProjectRow) => {
-    router.push((`/gallery/${item.projectId}` as unknown) as any);
+    router.push(`/gallery/${item.projectId}`);
   };
 
   return (

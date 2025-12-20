@@ -25,8 +25,10 @@ export default function NewJobScreen() {
       return;
     }
 
-    const progressNum = Math.max(0, Math.min(100, Number(progress || 0)));
-    const budgetCents = Math.max(0, Math.round(Number(budget || 0) * 100));
+    const progressParsed = Number(progress || 0);
+    const progressNum = Math.max(0, Math.min(100, isNaN(progressParsed) ? 0 : progressParsed));
+    const budgetParsed = Number(budget || 0);
+    const budgetCents = Math.max(0, Math.round(isNaN(budgetParsed) ? 0 : budgetParsed * 100));
 
     try {
       setIsSaving(true);

@@ -71,9 +71,14 @@ export default function EstimateScreen() {
 
   useEffect(() => {
     (async () => {
-      const s = await loadSettingsAsync();
-      setSettings(s);
-      await Promise.all([loadDraft(), refreshJobs()]);
+      try {
+        const s = await loadSettingsAsync();
+        setSettings(s);
+        await Promise.all([loadDraft(), refreshJobs()]);
+      } catch (error) {
+        console.error('Failed to load estimate screen data:', error);
+        // Settings will remain at defaults, which is acceptable
+      }
     })();
   }, [loadDraft, refreshJobs]);
 
@@ -100,17 +105,27 @@ export default function EstimateScreen() {
     });
 
     if (!result.canceled) {
-      const imported = await Promise.all(
-        result.assets.map(async (asset) => {
-          const localPath = await importPhotoToAppStorageAsync(asset.uri);
-          if (settings.autoUpload) {
-            // Reason: user requested local-only storage; auto-upload means save to local Gallery as unassigned.
-            await createPhotoAsync({ jobId: null, localPath, originalUri: asset.uri });
-          }
-          return { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, uri: localPath } satisfies Photo;
-        })
-      );
-      setPhotos((prev) => [...prev, ...imported]);
+      try {
+        const imported = await Promise.all(
+          result.assets.map(async (asset) => {
+            const localPath = await importPhotoToAppStorageAsync(asset.uri);
+            if (settings.autoUpload) {
+              // Reason: user requested local-only storage; auto-upload means save to local Gallery as unassigned.
+              try {
+                await createPhotoAsync({ jobId: null, localPath, originalUri: asset.uri });
+              } catch (uploadError) {
+                console.error('Failed to auto-upload photo to gallery:', uploadError);
+                // Continue anyway - photo is still usable for the estimate
+              }
+            }
+            return { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, uri: localPath } satisfies Photo;
+          })
+        );
+        setPhotos((prev) => [...prev, ...imported]);
+      } catch (e) {
+        console.error('Failed to import photos:', e);
+        Alert.alert(t('common.error'), t('errors.failedImportPhotos', 'Failed to import photos. Please try again.'));
+      }
     }
   };
 
@@ -126,12 +141,22 @@ export default function EstimateScreen() {
     });
 
     if (!result.canceled) {
-      const localPath = await importPhotoToAppStorageAsync(result.assets[0].uri);
-      if (settings.autoUpload) {
-        await createPhotoAsync({ jobId: null, localPath, originalUri: result.assets[0].uri });
+      try {
+        const localPath = await importPhotoToAppStorageAsync(result.assets[0].uri);
+        if (settings.autoUpload) {
+          try {
+            await createPhotoAsync({ jobId: null, localPath, originalUri: result.assets[0].uri });
+          } catch (uploadError) {
+            console.error('Failed to auto-upload photo to gallery:', uploadError);
+            // Continue anyway - photo is still usable for the estimate
+          }
+        }
+        const newPhoto: Photo = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, uri: localPath };
+        setPhotos((prev) => [...prev, newPhoto]);
+      } catch (e) {
+        console.error('Failed to capture photo:', e);
+        Alert.alert(t('common.error'), t('errors.failedCapturePhoto', 'Failed to capture photo. Please try again.'));
       }
-      const newPhoto: Photo = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, uri: localPath };
-      setPhotos((prev) => [...prev, newPhoto]);
     }
   };
 
@@ -186,13 +211,13 @@ export default function EstimateScreen() {
           });
 
       console.log('AI Estimate Result:', result);
-      setEstimate(result);
 
       // Refresh credits after successful estimate (deducts 1 credit)
       if (isBackendConfigured) {
         await refreshCredits();
       }
 
+      // Save estimate to database - must succeed before showing results
       const id = await createEstimateAsync({
         jobId: null,
         status: 'final',
@@ -200,6 +225,13 @@ export default function EstimateScreen() {
         estimateJson: JSON.stringify(result),
         currency,
       });
+
+      if (!id) {
+        throw new Error(t('estimate.failedToSave', 'Failed to save estimate to database.'));
+      }
+
+      // Only set estimate and ID after both AI generation and DB save succeed
+      setEstimate(result);
       setEstimateId(id);
     } catch (err) {
       console.error('Error generating estimate:', err);
@@ -272,7 +304,7 @@ export default function EstimateScreen() {
       });
       await refreshJobs();
       await onAssignToJobId(newJobId);
-      router.push((`/jobs/${newJobId}` as unknown) as any);
+      router.push(`/jobs/${newJobId}`);
     } catch (e) {
       Alert.alert(t('common.error'), e instanceof Error ? e.message : t('errors.saveFailed'));
     } finally {
