@@ -1,0 +1,29 @@
+name: Supabase Keep-Alive
+
+on:
+  schedule:
+    # Runs daily at 9:00 AM UTC
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+    # Allows manual trigger from GitHub Actions UI
+
+jobs:
+  ping-database:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase to prevent pause
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+
+          if [ "$response" -eq 200 ]; then
+            echo "✅ Supabase ping successful (HTTP $response)"
+          else
+            echo "❌ Supabase ping failed (HTTP $response)"
+            exit 1
+          fi
+
+      - name: Log timestamp
+        run: echo "Keep-alive executed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
