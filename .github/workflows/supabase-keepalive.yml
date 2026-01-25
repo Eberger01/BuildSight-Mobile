@@ -2,28 +2,36 @@ name: Supabase Keep-Alive
 
 on:
   schedule:
-    # Runs daily at 9:00 AM UTC
-    - cron: "0 9 * * *"
+    # Multiple times/day, avoid top-of-hour
+    - cron: "17 3 * * *"
+    - cron: "41 9 * * *"
+    - cron: "23 15 * * *"
+    - cron: "52 21 * * *"
   workflow_dispatch:
-    # Allows manual trigger from GitHub Actions UI
 
 jobs:
-  ping-database:
+  keepalive:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+
     steps:
-      - name: Ping Supabase to prevent pause
+      - name: Ping Supabase RPC keepalive()
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          set -euo pipefail
 
-          if [ "$response" -eq 200 ]; then
-            echo "✅ Supabase ping successful (HTTP $response)"
-          else
-            echo "❌ Supabase ping failed (HTTP $response)"
-            exit 1
-          fi
+          echo "Pinging Supabase keepalive()..."
+          curl --fail --silent --show-error \
+            --retry 6 --retry-all-errors --retry-delay 3 --max-time 20 \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            "$SUPABASE_URL/rest/v1/rpc/keepalive" \
+            -d '{}'
 
-      - name: Log timestamp
-        run: echo "Keep-alive executed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo ""
+          echo "✅ OK at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
